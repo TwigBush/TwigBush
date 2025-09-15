@@ -1,6 +1,6 @@
-# gnap-go
+# TwigBush
 
-**gnap-go** is an open source implementation of the [Grant Negotiation and Authorization Protocol (GNAP, RFC 9635)](https://www.rfc-editor.org/rfc/rfc9635.html) written in Go.
+**TwigBush** is an open source implementation of the [Grant Negotiation and Authorization Protocol (GNAP, RFC 9635)](https://www.rfc-editor.org/rfc/rfc9635.html) written in Go.
 It provides a production-ready **Authorization Server (AS)** and supporting libraries for **Resource Servers (RS)**, enabling modern, key-bound, just-in-time access control for humans and AI agents.
 
 ---
@@ -39,7 +39,7 @@ gnap-go/
 ### Run the Authorization Server
 
 ```bash
-git clone https://github.com/TwigBush/gnap-go.git
+git clone https://github.com/TwigBush/TwigBush.git
 cd gnap-go
 
 # download dependencies
