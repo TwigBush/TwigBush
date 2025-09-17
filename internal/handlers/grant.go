@@ -43,16 +43,22 @@ func (h *GrantHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	base := httpx.BaseURL(r)
 
+	code := ""
+	if state.UserCode != nil {
+		code = *state.UserCode
+	}
+
 	resp := gnap.GrantResponse{
 		Continue: gnap.Continue{
-			AccessToken: gnap.RandHex(16),         // 32 hex chars
+			AccessToken: state.ContinuationToken,
 			URI:         base + "/continue/" + state.ID,
 			Wait:        h.WaitSeconds,
 		},
+
 		Interact: gnap.InteractOut{
 			Expires: state.ExpiresAt,
 			UserCode: gnap.UserCode{
-				Code: gnap.RandUserCode(),
+				Code: code,
 				URI:  base + "/device",
 			},
 		},
@@ -60,4 +66,3 @@ func (h *GrantHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	httpx.WriteJSON(w, http.StatusOK, resp)
 }
-

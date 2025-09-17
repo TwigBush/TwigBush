@@ -9,66 +9,82 @@ import (
 type GrantStatus string
 
 const (
-	GrantStatusPending GrantStatus = "pending"
+	GrantStatusPending  GrantStatus = "pending"
+	GrantStatusApproved GrantStatus = "approved"
+	GrantStatusDenied   GrantStatus = "denied"
+	GrantStatusExpired  GrantStatus = "expired"
 )
 
 type JWK struct {
-	Kty string `json:"kty"`           // e.g. "EC"
-	Crv string `json:"crv,omitempty"` // e.g. "P-256"
+	Kty string `json:"kty"`
+	Crv string `json:"crv,omitempty"`
 	X   string `json:"x,omitempty"`
 	Y   string `json:"y,omitempty"`
-	// Add "kid","alg" later if needed
 }
 
 type ClientKey struct {
-	Proof string `json:"proof"` // e.g. "httpsig","jwsd","mtls","dpop"
+	Proof string `json:"proof"`
 	JWK   JWK    `json:"jwk"`
 }
-
 type Client struct {
 	Key ClientKey `json:"key"`
 }
 
-type AccessConstraint map[string]string
+type GrantedAccess struct {
+	ResourceID     string   `json:"resource_id,omitempty"`
+	Type           string   `json:"type"`
+	Rights         []string `json:"rights,omitempty"`
+	Scopes         []string `json:"scopes,omitempty"`
+	ResourceServer string   `json:"resource_server,omitempty"`
+}
 
+type AccessConstraint map[string]string
 type AccessItem struct {
-	Type        string           `json:"type"`                  // e.g. "payment"
-	ResourceID  string           `json:"resource_id,omitempty"` // e.g. "sku:GPU-HOURS-100"
-	Actions     []string         `json:"actions,omitempty"`     // e.g. ["purchase"]
-	Constraints AccessConstraint `json:"constraints,omitempty"` // amount,currency,merchant_id
-	Locations   []string         `json:"locations,omitempty"`   // audiences / RS urls
+	Type        string           `json:"type"`
+	ResourceID  string           `json:"resource_id,omitempty"`
+	Actions     []string         `json:"actions,omitempty"`
+	Constraints AccessConstraint `json:"constraints,omitempty"`
+	Locations   []string         `json:"locations,omitempty"`
 }
 
 type Interact struct {
-	Start []string `json:"start,omitempty"` // e.g. ["user_code"], ["redirect","user_code"]
+	Start []string `json:"start,omitempty"`
 }
 
 type GrantRequest struct {
 	Client      Client       `json:"client"`
 	Access      []AccessItem `json:"access"`
 	Interact    *Interact    `json:"interact,omitempty"`
-	TokenFormat string       `json:"token_format,omitempty"` // e.g. "jwt", "opaque"
+	TokenFormat string       `json:"token_format,omitempty"` // "jwt"|"opaque"
 }
 
 type GrantState struct {
-	ID                string       `json:"id"`
-	Status            GrantStatus  `json:"status"`
-	Client            Client       `json:"client"`
-	RequestedAccess   []AccessItem `json:"requested_access"`
-	ContinuationToken string       `json:"continuation_token"`
-	TokenFormat       string       `json:"token_format"`
-	CreatedAt         time.Time    `json:"created_at"`
-	UpdatedAt         time.Time    `json:"updated_at"`
-	ExpiresAt         time.Time    `json:"expires_at"`
-	InteractionNonce  *string      `json:"interaction_nonce,omitempty"`
-	// Optional echo of locations to help RS routing
-	Locations json.RawMessage `json:"locations,omitempty"`
+	ID                    string          `json:"id"`
+	Status                GrantStatus     `json:"status"`
+	Client                Client          `json:"client"`
+	RequestedAccess       []AccessItem    `json:"requested_access"`
+	ApprovedAccess        []AccessItem    `json:"approved_access,omitempty"` // set when approved
+	Subject               *string         `json:"subject,omitempty"`         // e.g. sub id
+	ContinuationToken     string          `json:"continuation_token"`
+	TokenFormat           string          `json:"token_format"`
+	CreatedAt             time.Time       `json:"created_at"`
+	UpdatedAt             time.Time       `json:"updated_at"`
+	ExpiresAt             time.Time       `json:"expires_at"`
+	Locations             json.RawMessage `json:"locations,omitempty"`
+	UserCode              *string         `json:"user_code,omitempty"`
+	ApprovedAccessGranted []GrantedAccess `json:"approved_access_granted,omitempty"`
 }
 
 type Config struct {
 	GrantTTLSeconds int64
+	TokenTTLSeconds int64
 }
 
 type Store interface {
 	CreateGrant(ctx context.Context, req GrantRequest) (*GrantState, error)
+	GetGrant(ctx context.Context, id string) (*GrantState, bool)
+	FindGrantByUserCodePending(ctx context.Context, code string) (*GrantState, bool)
+
+	ApproveGrant(ctx context.Context, id string, approved []AccessItem, subject string) (*GrantState, error)
+	DenyGrant(ctx context.Context, id string) (*GrantState, error)
 }
