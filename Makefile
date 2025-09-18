@@ -26,6 +26,12 @@ build:
 run:
 	$(GO) run ./cmd/as
 
+build-demo:
+	$(GO) build -o bin/demo ./cmd/demo
+
+run-demo:
+	$(GO) run ./cmd/demo
+
 clean:
 	$(GO) clean -modcache
 	rm -rf bin/

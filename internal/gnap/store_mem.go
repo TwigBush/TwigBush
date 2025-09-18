@@ -6,7 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"log"
+	"fmt"
 	"sync"
 	"time"
 
@@ -32,7 +32,7 @@ func (s *MemoryStore) CreateGrant(ctx context.Context, req GrantRequest) (*Grant
 
 	cont := randHex(16) // 32 hex chars
 
-	// collect locations (optional convenience for clients)
+	// Collect locations (optional convenience for clients)
 	var locs []string
 	for _, a := range req.Access {
 		if len(a.Locations) > 0 {
@@ -43,7 +43,9 @@ func (s *MemoryStore) CreateGrant(ctx context.Context, req GrantRequest) (*Grant
 	if len(locs) > 0 {
 		locRaw, _ = json.Marshal(locs)
 	}
+
 	uc := RandUserCode()
+
 	state := &GrantState{
 		ID:                uuid.NewString(),
 		Status:            GrantStatusPending,
@@ -55,7 +57,7 @@ func (s *MemoryStore) CreateGrant(ctx context.Context, req GrantRequest) (*Grant
 		UpdatedAt:         now,
 		ExpiresAt:         exp,
 		Locations:         locRaw,
-		UserCode:          &uc,
+		UserCode:          &uc, // device/user_code flow
 	}
 
 	s.mu.Lock()
@@ -63,6 +65,24 @@ func (s *MemoryStore) CreateGrant(ctx context.Context, req GrantRequest) (*Grant
 	s.mu.Unlock()
 
 	return state, nil
+}
+
+func (s *MemoryStore) MarkCodeVerified(ctx context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	g, ok := s.grants[id]
+	if !ok {
+		return fmt.Errorf("grant not found")
+	}
+	if g.Status != GrantStatusPending {
+		return fmt.Errorf("grant not pending")
+	}
+
+	g.CodeVerified = true
+	g.UpdatedAt = time.Now().UTC()
+	s.grants[id] = g
+	return nil
 }
 
 func (s *MemoryStore) GetGrant(ctx context.Context, id string) (*GrantState, bool) {
@@ -73,7 +93,7 @@ func (s *MemoryStore) GetGrant(ctx context.Context, id string) (*GrantState, boo
 		return nil, false
 	}
 
-	// mutate if expired (like Java)
+	// Mutate to expired-on-read if TTL elapsed (matches your Java behavior)
 	now := time.Now().UTC()
 	if now.After(g.ExpiresAt) && g.Status != GrantStatusExpired {
 		s.mu.Lock()
@@ -82,38 +102,39 @@ func (s *MemoryStore) GetGrant(ctx context.Context, id string) (*GrantState, boo
 		s.grants[id] = g
 		s.mu.Unlock()
 	}
+
 	return g, true
 }
+
 func (s *MemoryStore) FindGrantByUserCodePending(ctx context.Context, code string) (*GrantState, bool) {
 	if code == "" {
 		return nil, false
 	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, g := range s.grants {
-		log.Printf("checking grant %s", g.ID)
 		if g == nil || g.Status != GrantStatusPending {
 			continue
 		}
 		if g.UserCode != nil && *g.UserCode == code {
-			// Note: expiry check like GetGrant could be added if desired
+			// (Optional) You could also check expiry here similar to GetGrant
 			return g, true
 		}
 	}
 	return nil, false
 }
 
+// AccessItem -> GrantedAccess projector (kept for when/if you store GrantedAccess explicitly)
 func accessToGranted(a AccessItem) GrantedAccess {
-	ga := GrantedAccess{
-		Type: a.Type,
-	}
+	ga := GrantedAccess{Type: a.Type}
 	// resource_id: prefer explicit, else fallback to "<type>:*"
 	if a.ResourceID != "" {
 		ga.ResourceID = a.ResourceID
 	} else if a.Type != "" {
 		ga.ResourceID = a.Type + ":*"
 	}
-	// use Actions as "rights" by analogy (you can refine later)
+	// Map actions -> rights (can refine later)
 	if len(a.Actions) > 0 {
 		ga.Rights = append(ga.Rights, a.Actions...)
 	}
@@ -127,30 +148,25 @@ func (s *MemoryStore) ApproveGrant(ctx context.Context, id string, approved []Ac
 
 	g, ok := s.grants[id]
 	if !ok {
-		return nil, errors.New("grant not found")
+		return nil, fmt.Errorf("grant not found")
+	}
+	if g.Status != GrantStatusPending {
+		return nil, fmt.Errorf("grant not pending")
+	}
+	// Enforce device code ordering for production-like behavior
+	if !g.CodeVerified {
+		return nil, fmt.Errorf("code not verified")
 	}
 
-	// expire-on-read check like GetGrant
-	now := time.Now().UTC()
-	if now.After(g.ExpiresAt) {
-		g.Status = GrantStatusExpired
-		g.UpdatedAt = now
-		s.grants[id] = g
-		return nil, errors.New("grant expired")
-	}
-
-	// map requested/approved -> GrantedAccess (Java shape)
-	out := make([]GrantedAccess, 0, len(approved))
-	for _, a := range approved {
-		out = append(out, accessToGranted(a))
+	// If caller didn't specify, approve exactly what was requested
+	if len(approved) == 0 {
+		approved = g.RequestedAccess
 	}
 
 	g.Status = GrantStatusApproved
-	g.ApprovedAccessGranted = out
-	if subject != "" {
-		g.Subject = &subject
-	}
-	g.UpdatedAt = now
+	g.ApprovedAccess = approved
+	g.Subject = &subject
+	g.UpdatedAt = time.Now().UTC()
 	s.grants[id] = g
 	return g, nil
 }
