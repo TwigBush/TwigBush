@@ -16,7 +16,7 @@ type IssueConfig struct {
 }
 
 func IssueToken(grant *gnap.GrantState, cfg IssueConfig) (*Token, error) {
-	if len(grant.ApprovedAccess) == 0 {
+	if len(grant.ApprovedAccessGranted) == 0 {
 		return nil, ErrNotApproved
 	}
 
