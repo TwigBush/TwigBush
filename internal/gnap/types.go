@@ -80,6 +80,11 @@ type Config struct {
 	TokenTTLSeconds int64
 }
 
+type ErrorResponse struct {
+	Error       string `json:"error"`
+	Description string `json:"error_description,omitempty"`
+}
+
 type Store interface {
 	CreateGrant(ctx context.Context, req GrantRequest) (*GrantState, error)
 	GetGrant(ctx context.Context, id string) (*GrantState, bool)
