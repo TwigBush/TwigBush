@@ -89,7 +89,6 @@ We welcome contributions of all kinds!
 
 * See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 * Maintainers and contributors are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md).
-* Governance and maintainer roles are defined in [MAINTAINERS.md](MAINTAINERS.md).
 
 ---
 
