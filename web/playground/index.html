@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>GNAP Playground</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>mermaid.initialize({ startOnLoad: false, theme: "dark" });</script>
+    <style>
+        .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #2b3b55;background:#0b1220}
+        .dot{width:8px;height:8px;border-radius:50%}
+        .dot.processing{background:#60a5fa}
+        .dot.pending{background:#f59e0b}
+        .dot.approved{background:#10b981}
+        .dot.denied{background:#ef4444}
+        .dot.expired{background:#9ca3af}
+        .dot.finalized{background:#22c55e}
+        .panel{border:1px solid #273244;border-radius:12px;padding:12px;background:#0b1220}
+        .kv{display:grid;grid-template-columns:120px 1fr;gap:6px;font-size:13px}
+        .mono{font-family:ui-monospace,Menlo,monospace}
+        .btn-secondary{background:linear-gradient(135deg,#374151,#111827);color:#e5e7eb;border:1px solid #374151;box-shadow:none}
+        .code-input{display:flex;gap:8px;align-items:center}
+        .code-input input{width:160px;border-radius:10px;border:1px solid #1f2937;background:#0b1220;color:#e2e8f0;padding:10px 12px;font:600 16px/1 ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:1px}
+        .small{font-size:12px;color:#94a3b8}
+
+    </style>
+</head>
+<body>
+<div class="wrap">
+    <div class="card">
+        <h1>GNAP Grant Playground</h1>
+        <p>Request a grant, approve/deny via device code, and watch the lifecycle update in real time.</p>
+
+        <div class="grid">
+            <!-- LEFT: Controls -->
+            <div>
+                <h3>Grant Request</h3>
+                <textarea id="grantJSON" rows="14" spellcheck="false"></textarea>
+                <div class="row">
+                    <button id="btnGrant">POST /grant</button>
+                    <button id="btnApprove" class="btn-secondary" disabled title="Approve after code verification">Approve</button>
+                    <button id="btnDeny" class="btn-secondary" title="Debug deny (demo only)">Deny</button>
+                </div>
+
+                <h3 style="margin-top:16px;">Device Code (user present)</h3>
+                <div class="panel">
+                    <div class="kv">
+                        <div>Issued code</div>
+                        <div id="issuedCode" class="mono">—</div>
+                        <div>Device page</div>
+                        <div><a href="/device" target="_blank">Open /device</a> <span class="small">(manual entry)</span></div>
+                    </div>
+                    <div class="small" style="margin-top:8px">Try it here (simulated):</div>
+                    <div class="code-input" style="margin-top:6px">
+                        <input id="inputCode" placeholder="ABCD-1234" maxlength="9">
+                        <button id="btnVerifyCode" class="btn-secondary">Simulate Verify</button>
+                    </div>
+                    <div id="verifyMsg" class="small" style="margin-top:6px"></div>
+                </div>
+
+                <h3 style="margin-top:16px;">Continue</h3>
+                <div class="panel">
+                    <div class="kv">
+                        <div>Grant ID</div>      <div id="curGrant"    class="mono val">—</div>
+                        <div>Continue URI</div>  <div id="curContinue" class="mono val">—</div>
+                        <div>Token</div>         <div id="curContTok"  class="mono val">—</div>
+                    </div>
+                    <div class="row" style="margin-top:8px">
+                        <button id="btnContinue">Call /continue</button>
+                        <button id="btnPoll" class="btn-secondary" title="Poll every 2s">Start Poll</button>
+                        <button id="btnStopPoll" class="btn-secondary">Stop Poll</button>
+                    </div>
+                    <pre id="continueOut" class="out" style="margin-top:8px"></pre>
+                </div>
+            </div>
+
+            <!-- RIGHT: Visualization -->
+            <div>
+                <h3>Lifecycle <span id="stateBadge" class="badge"><span class="dot pending"></span><span>—</span></span></h3>
+                <div id="diagram"></div>
+                <ul id="events" class="events" style="margin-top:10px"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

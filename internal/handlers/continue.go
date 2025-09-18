@@ -12,9 +12,8 @@ import (
 )
 
 type ContinueHandler struct {
-	Store gnap.Store
-	// optional: configure default wait seconds
-	WaitSeconds int
+	Store       gnap.Store
+	WaitSeconds int // how long the client should wait before polling /continue
 }
 
 func NewContinueHandler(store gnap.Store) *ContinueHandler {
@@ -22,29 +21,39 @@ func NewContinueHandler(store gnap.Store) *ContinueHandler {
 }
 
 func (h *ContinueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// GNAP continuation MUST be a POST with Authorization: GNAP <token>
+	if r.Method != http.MethodPost {
+		w.Header().Set("Allow", http.MethodPost)
+		httpx.WriteError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	// Responses should not be cached
+	w.Header().Set("Cache-Control", "no-store")
+
 	grantID := chi.URLParam(r, "grantId")
 
 	authz := r.Header.Get("Authorization")
 	contToken, ok := httpx.ExtractGNAPToken(authz)
-	if !ok {
-		httpx.WriteError(w, http.StatusUnauthorized, "Missing continuation token")
+	if !ok || contToken == "" {
+		httpx.WriteError(w, http.StatusUnauthorized, "missing continuation token")
 		return
 	}
 
 	grant, found := h.Store.GetGrant(r.Context(), grantID)
-	if !found {
-		httpx.WriteError(w, http.StatusNotFound, "Grant not found")
+	if !found || grant == nil {
+		httpx.WriteError(w, http.StatusNotFound, "grant not found")
 		return
 	}
 
+	// Simple token equality check (opaque token)
 	if contToken != grant.ContinuationToken {
-		httpx.WriteError(w, http.StatusUnauthorized, "Invalid continuation token")
+		httpx.WriteError(w, http.StatusUnauthorized, "invalid continuation token")
 		return
 	}
 
 	switch grant.Status {
 	case gnap.GrantStatusPending:
-		// mirror your Java: return a "continue" object
+		// Still pending: instruct client to poll again
 		resp := map[string]any{
 			"continue": map[string]any{
 				"access_token": contToken,
@@ -56,12 +65,13 @@ func (h *ContinueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case gnap.GrantStatusApproved:
-		// issue final access token
-		issuer := baseURL(r) // simple; swap for configured issuer if you have one
+		// Issue the final access token. Bind to client key if your IssueToken supports it.
+		issuer := baseURL(r)
 		tok, err := token.IssueToken(grant, token.IssueConfig{
 			Issuer:          issuer,
-			TokenTTLSeconds: grantTokenTTL(r.Context(), h.Store), // simple helper, or use constant
 			Audience:        "mcp-resource-servers",
+			TokenTTLSeconds: grantTokenTTL(r.Context(), h.Store),
+			//BindJWK:         grant.Client.Key.JWK, // enable cnf/jkt in token layer
 		})
 		if err != nil {
 			httpx.WriteError(w, http.StatusBadRequest, err.Error())
@@ -78,15 +88,17 @@ func (h *ContinueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 
 	case gnap.GrantStatusDenied:
-		httpx.WriteError(w, http.StatusForbidden, "Grant denied by user")
+		httpx.WriteError(w, http.StatusForbidden, "grant denied by user")
 		return
 
 	case gnap.GrantStatusExpired:
-		httpx.WriteError(w, http.StatusBadRequest, "Grant expired")
+		httpx.WriteError(w, http.StatusBadRequest, "grant expired")
+		return
+
+	default:
+		httpx.WriteError(w, http.StatusBadRequest, "unknown grant status")
 		return
 	}
-
-	httpx.WriteError(w, http.StatusBadRequest, "Unknown grant status")
 }
 
 func baseURL(r *http.Request) string {
@@ -98,5 +110,5 @@ func baseURL(r *http.Request) string {
 }
 
 // If you wired Config into the store, you can read it from there.
-// For now, just return a constant or 300s to mirror Java.
+// For now, return a sane default.
 func grantTokenTTL(_ context.Context, _ gnap.Store) int64 { return 300 }

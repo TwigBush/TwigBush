@@ -73,6 +73,7 @@ type GrantState struct {
 	Locations             json.RawMessage `json:"locations,omitempty"`
 	UserCode              *string         `json:"user_code,omitempty"`
 	ApprovedAccessGranted []GrantedAccess `json:"approved_access_granted,omitempty"`
+	CodeVerified          bool            `json:"-"`
 }
 
 type Config struct {
@@ -92,4 +93,6 @@ type Store interface {
 
 	ApproveGrant(ctx context.Context, id string, approved []AccessItem, subject string) (*GrantState, error)
 	DenyGrant(ctx context.Context, id string) (*GrantState, error)
+
+	MarkCodeVerified(ctx context.Context, id string) error
 }
