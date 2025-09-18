@@ -142,8 +142,8 @@ func (a *AuthFlow) PollForToken(ctx context.Context, grant *gnap.GrantResponse) 
 		switch resp.StatusCode {
 		case http.StatusOK:
 			var continueResponse struct {
-				AccessToken *token.Token       `json:"access_token,omitempty"`
-				Continue    *gnap.Continue     `json:"continue,omitempty"`
+				AccessToken *token.Token        `json:"access_token,omitempty"`
+				Continue    *gnap.Continue      `json:"continue,omitempty"`
 				Error       *gnap.ErrorResponse `json:"error,omitempty"`
 			}
 

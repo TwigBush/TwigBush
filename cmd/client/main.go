@@ -66,13 +66,13 @@ func main() {
 	// Define resources to request access to
 	resources := []gnap.AccessItem{
 		{
-			Type: "photo-api",
-			Actions: []string{"read", "write"},
+			Type:      "photo-api",
+			Actions:   []string{"read", "write"},
 			Locations: []string{"https://server.example.net/"},
 		},
 		{
-			Type: "financial",
-			Actions: []string{"read"},
+			Type:      "financial",
+			Actions:   []string{"read"},
 			Locations: []string{"https://backend.example.net/"},
 		},
 	}

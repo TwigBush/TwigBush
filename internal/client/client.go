@@ -52,7 +52,7 @@ func (c *GnapClient) Authorize(ctx context.Context, resources []gnap.AccessItem,
 		return nil, fmt.Errorf("failed to get token: %w", err)
 	}
 
-	// TODO: Store token for future use 
+	// TODO: Store token for future use
 	return token, nil
 }
 
