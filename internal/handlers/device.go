@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"html/template"
+	"log"
 	"net/http"
 	"regexp"
 	"time"
@@ -45,7 +46,7 @@ type GrantStateJSON struct {
 
 func (h *DeviceHandler) VerifyJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
-
+	log.Printf("device.verify: %s", r.Body)
 	var req verifyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid JSON")

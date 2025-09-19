@@ -1,4 +1,4 @@
-# Contributing to gnap-go
+# Contributing to TwigBush
 
 Welcome, and thank you for your interest in contributing! 🎉
 This project follows the [CNCF community values](https://www.cncf.io/) of openness, inclusivity, and technical excellence. Contributions are welcome from anyone, whether you are a seasoned Go developer, a security researcher, or just exploring GNAP for the first time.
@@ -16,13 +16,13 @@ By participating, you are expected to uphold this code. Please report unacceptab
 
 ### 1. Reporting Issues
 
-* Use [GitHub Issues](../../issues) to report bugs, request features, or suggest improvements.
+* Use [GitHub Issues](https://github.com/TwigBush/docs/issues) to report bugs, request features, or suggest improvements.
 * Please include:
 
   * What you expected to happen
   * What actually happened
   * Steps to reproduce (if applicable)
-  * Version/commit of `gnap-go` you tested
+  * Version/commit of `TwigBush` you tested
 
 ### 2. Proposing Features
 
@@ -67,18 +67,22 @@ go test ./...
 # Start the Authorization Server
 go run ./cmd/as
 
-# Start the Resource Server demo
-go run ./cmd/rs-demo
+# Start the Resource Server example
+go run ./cmd/client
+
+# Start the grant introspection demo
+go run ./cmd/demo
 
 # Build binaries
 go build -o bin/as ./cmd/as
-go build -o bin/rs-demo ./cmd/rs-demo
+go build -o bin/rs-demo ./cmd/demo
 ```
 
 ### Project Layout
 
 * `cmd/as` – GNAP Authorization Server
-* `cmd/rs-demo` – Example Resource Server
+* `cmd/client` – GNAP Resource Server example
+* `cmd/demo` – grant introspection demo
 * `internal/` – Core packages (handlers, token, storage, signing, policy)
 * `pkg/` – Importable helpers for external projects
 
@@ -86,15 +90,16 @@ go build -o bin/rs-demo ./cmd/rs-demo
 
 ## Documentation
 
-* End-user and operator docs live in `/docs`.
-* API examples (grant, continue, introspect) live in `/examples`.
+* End-user and operator docs live in [the docs repo](https://github.com/TwigBush/docs).
+* TODO: example code to better location
+* API examples (grant, continue, introspect) live in `/gnap-go/cmd/demo` and  `/gnap-go/cmd/client`. 
 * Keep docs updated with code changes.
 
 ---
 
 ## Communication
 
-* Discussions happen in [GitHub Discussions](../../discussions).
+* Discussions happen in [GitHub Discussions](https://github.com/orgs/TwigBush/discussions).
 * Security issues? Please **do not** open a public issue. Report privately to [security@twigbush.org](mailto:security@twigbush.org).
 
 ---

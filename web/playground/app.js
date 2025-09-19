@@ -26,7 +26,7 @@ function stateBadge(state){
     $('stateBadge').innerHTML = `<span class="dot ${cls}"></span><span>${s || '—'}</span>`;
 }
 
-function diagramDef(state="pending"){
+function diagramDef(){
     return `
 stateDiagram-v2
   [*] --> processing: create
@@ -37,12 +37,12 @@ stateDiagram-v2
   approved --> finalized: continue/issue token
   denied --> finalized
   expired --> finalized
-  note right of ${state}: current
+  
 `;
 }
 
-async function setDiagram(state="pending"){
-    const def = diagramDef(state);
+async function setDiagram(){
+    const def = diagramDef();
     try {
         const { svg } = await mermaid.render("grantDiagram", def);
         $('diagram').innerHTML = svg;
@@ -145,7 +145,7 @@ async function callContinue(){
         // If access_token is returned, mark finalized
         if(data.access_token){
             stateBadge('finalized');
-            setDiagram('finalized');
+            setDiagram();
             addEventLine('finalized', `token issued`);
             const tok = data?.access_token?.value;
             if (tok) {
@@ -169,7 +169,7 @@ function stopPolling(){
 // ---- Init --------------------------------------------------------------------
 window.addEventListener('DOMContentLoaded', () => {
     setGrantText();
-    setDiagram("processing");
+    setDiagram();
     stateBadge('processing');
     startSSE();
 
@@ -196,7 +196,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if(code) addEventLine('code_issued', `code=${code}`);
 
             stateBadge('pending');
-            setDiagram('pending');
+            setDiagram();
         } catch (e) {
             addEventLine('error', "grant error: " + e.message);
             console.error(e);
@@ -209,6 +209,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!currentGrantId) return;
             await postForm(`/debug/approve/${currentGrantId}`, {});
             addEventLine('approved', `grant=${currentGrantId}`);
+            stateBadge('approved');
         } catch (e) {
             addEventLine('error', "approve error: " + e.message);
         }
@@ -218,6 +219,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (!currentGrantId) return;
             await postForm(`/debug/deny/${currentGrantId}`, {});
             addEventLine('denied', `grant=${currentGrantId}`);
+            stateBadge('denied');
         } catch (e) {
             addEventLine('error', "deny error: " + e.message);
         }
@@ -238,7 +240,8 @@ window.addEventListener('DOMContentLoaded', () => {
             return;
         }
         try{
-            await postForm("/device/verify", { user_code: code });
+            console.log("Verifying code", code);
+            await postJSON("/device/verify", { user_code: code });
             $('verifyMsg').textContent = "Code accepted. Review consent in the other tab or Approve/Deny here.";
             addEventLine('code_verified', `code=${code}`);
             $('btnApprove').disabled = false;   // <-- unlock approve

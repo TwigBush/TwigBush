@@ -1,6 +1,6 @@
 # Contributors
 
-The following people have contributed to the **TwigBush gnap-go** project.
+The following people have contributed to the **TwigBush** project.
 We gratefully acknowledge their work and welcome new contributors!
 
 ---
@@ -23,7 +23,7 @@ A complete list of code contributors is available via [GitHub’s contributors g
 
 ## How to Become a Contributor
 
-See our [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to:
+See our [CONTRIBUTING.md](../CONTRIBUTING.md.md) for details on how to:
 
 * Report issues
 * Propose features
