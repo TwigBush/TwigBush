@@ -2,8 +2,6 @@ package gnap
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -42,33 +40,33 @@ func (fileStore *FileStore) grantPath(id string) string {
 
 func (fileStore *FileStore) writeGrant(g *GrantState) error {
 	path := fileStore.grantPath(g.ID)
-	tmp := path + ".tmp"
+	tempFilePath := path + ".tempFilePath"
 
-	b, err := json.MarshalIndent(g, "", "  ")
+	bytes, err := json.MarshalIndent(g, "", "  ")
 	if err != nil {
 		return err
 	}
 	// 0600 since grants can include sensitive data
-	if err := os.WriteFile(tmp, b, 0o600); err != nil {
+	if err := os.WriteFile(tempFilePath, bytes, 0o600); err != nil {
 		return err
 	}
-	return os.Rename(tmp, path)
+	return os.Rename(tempFilePath, path)
 }
 
 func (fileStore *FileStore) readGrant(id string) (*GrantState, error) {
 	path := fileStore.grantPath(id)
-	b, err := os.ReadFile(path)
+	bytes, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			return nil, errors.New("grant not found")
 		}
 		return nil, err
 	}
-	var g GrantState
-	if err := json.Unmarshal(b, &g); err != nil {
+	var grantState GrantState
+	if err := json.Unmarshal(bytes, &grantState); err != nil {
 		return nil, err
 	}
-	return &g, nil
+	return &grantState, nil
 }
 
 func (fileStore *FileStore) listGrantFiles() ([]string, error) {
@@ -87,12 +85,6 @@ func (fileStore *FileStore) listGrantFiles() ([]string, error) {
 		}
 	}
 	return out, nil
-}
-
-func randHexDuplicate(n int) string {
-	b := make([]byte, n)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
 }
 
 // ---------- interface implementation ----------
