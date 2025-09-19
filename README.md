@@ -50,13 +50,21 @@ go run ./cmd/as
 
 The AS listens on `:8085` by default.
 
-### Run the Resource Server Demo
+### Run the GNAP Playground
 
 ```bash
-go run ./cmd/rs-demo
+go run ./cmd/demo
 ```
 
-This demo validates GNAP proof-of-possession tokens against the AS.
+The demo listens on `http://localhost:8089/playground` by default.
+
+### Run the Resource Server Command Line Client Example
+
+```bash
+go run ./cmd/client
+```
+
+This example validates GNAP proof-of-possession tokens against the AS.
 
 ---
 
@@ -78,7 +86,7 @@ This demo validates GNAP proof-of-possession tokens against the AS.
 * [ ] CLI tooling for administration and debugging
 * [ ] Helm charts and container images
 
-See [Issues](../../issues) for active work.
+See [Issues](https://github.com/TwigBush/TwigBush/issues) for active work.
 
 ---
 
@@ -109,7 +117,7 @@ Out of scope:
 TwigBush follows an **open governance** model:
 
 * Decisions are made in public via GitHub issues and discussions
-* Maintainers are listed in [CONTRIBUTORS.md](../CONTRIBUTORS.md.md)
+* Maintainers are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md.md)
 * New maintainers are nominated and approved by existing maintainers through documented consensus
 * Community involvement from implementers, operators, and researchers is strongly encouraged
 
@@ -129,8 +137,8 @@ TwigBush aligns with CNCF Sandbox goals:
 TwigBush is at a **proof-of-concept stage**. Breaking changes should be expected.
 We welcome feedback, issue reports, and contributions.
 
-* See [CONTRIBUTING.md](../CONTRIBUTING.md.md) for guidelines
-* Maintainers and contributors are listed in [CONTRIBUTORS.md](../CONTRIBUTORS.md.md)
+* See [CONTRIBUTING.md](CONTRIBUTING.md.md) for guidelines
+* Maintainers and contributors are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md.md)
 
 ---
 
