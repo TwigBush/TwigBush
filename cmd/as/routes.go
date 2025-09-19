@@ -2,14 +2,44 @@ package main
 
 import (
 	"net/http"
+	"os"
+	"path/filepath"
 
 	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/handlers"
 	"github.com/go-chi/chi/v5"
 )
 
+func defaultDataDir() string {
+	// Respect explicit override first
+	if v := os.Getenv("TWIGBUSH_DATA_DIR"); v != "" {
+		return v
+	}
+	// Resolve HOME cross-platform
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		// Fallback to current working dir if HOME is unknown
+		return filepath.Join(".", ".twigbush", "data")
+	}
+	return filepath.Join(home, ".twigbush", "data")
+}
+
 func registerRoutes(r chi.Router) {
-	store := gnap.NewMemoryStore(gnap.Config{GrantTTLSeconds: 120})
+	cfg := gnap.Config{GrantTTLSeconds: 120}
+
+	var store gnap.Store
+	switch os.Getenv("TWIGBUSH_STORE") {
+	case "fs":
+		dir := defaultDataDir()
+		fsStore, err := gnap.NewFileStore(dir, cfg)
+		if err != nil {
+			panic(err)
+		}
+		store = fsStore
+	default:
+		store = gnap.NewMemoryStore(cfg)
+	}
+
 	grant := handlers.NewGrantHandler(store)
 	cont := handlers.NewContinueHandler(store)
 	device := handlers.NewDeviceHandler(store)

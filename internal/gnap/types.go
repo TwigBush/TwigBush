@@ -73,7 +73,7 @@ type GrantState struct {
 	Locations             json.RawMessage `json:"locations,omitempty"`
 	UserCode              *string         `json:"user_code,omitempty"`
 	ApprovedAccessGranted []GrantedAccess `json:"approved_access_granted,omitempty"`
-	CodeVerified          bool            `json:"-"`
+	CodeVerified          bool            `json:"code_verified"`
 }
 
 type Config struct {
