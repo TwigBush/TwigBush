@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"time"
 
@@ -15,5 +16,6 @@ func Run() error {
 	registerRoutes(r)
 
 	srv := &http.Server{Addr: ":8089", Handler: r}
+	log.Print("listening on port ::: " + srv.Addr)
 	return srv.ListenAndServe()
 }
