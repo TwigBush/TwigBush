@@ -1,4 +1,4 @@
-# Makefile for TwigBush/gnap-go
+# Makefile for TwigBush
 SHELL := /bin/bash
 GO    ?= go
 

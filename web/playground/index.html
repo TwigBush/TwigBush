@@ -35,15 +35,13 @@
         <div class="grid">
             <!-- LEFT: Controls -->
             <div>
-                <h3>Grant Request</h3>
+                <h3>1. Create Grant Request</h3>
                 <textarea id="grantJSON" rows="14" spellcheck="false"></textarea>
                 <div class="row">
                     <button id="btnGrant">POST /grant</button>
-                    <button id="btnApprove" class="btn-secondary" disabled title="Approve after code verification">Approve</button>
-                    <button id="btnDeny" class="btn-secondary" title="Debug deny (demo only)">Deny</button>
                 </div>
 
-                <h3 style="margin-top:16px;">Device Code (user present)</h3>
+                <h3 style="margin-top:16px;">2. Input Device Code (user present)</h3>
                 <div class="panel">
                     <div class="kv">
                         <div>Issued code</div>
@@ -58,8 +56,12 @@
                     </div>
                     <div id="verifyMsg" class="small" style="margin-top:6px"></div>
                 </div>
+                <div class="row">
+                    <button id="btnApprove" class="btn-secondary" disabled title="Approve after code verification">Approve</button>
+                    <button id="btnDeny" class="btn-secondary" title="Debug deny (demo only)">Deny</button>
+                </div>
 
-                <h3 style="margin-top:16px;">Continue</h3>
+                <h3 style="margin-top:16px;">3. Continue</h3>
                 <div class="panel">
                     <div class="kv">
                         <div>Grant ID</div>      <div id="curGrant"    class="mono val">—</div>

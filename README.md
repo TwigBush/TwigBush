@@ -1,18 +1,20 @@
 # TwigBush
 
-**TwigBush** is an open source implementation of the [Grant Negotiation and Authorization Protocol (GNAP, RFC 9635)](https://www.rfc-editor.org/rfc/rfc9635.html) written in Go.
-It provides a production-ready **Authorization Server (AS)** and supporting libraries for **Resource Servers (RS)**, enabling modern, key-bound, just-in-time access control for humans and AI agents.
+**TwigBush** is an **early-stage, experimental** implementation of the [Grant Negotiation and Authorization Protocol (GNAP, RFC 9635)](https://www.rfc-editor.org/rfc/rfc9635.html) and its [Resource Server Connections extension (RFC 9767)](https://www.rfc-editor.org/rfc/rfc9767.html).
+It is written in Go and aims to provide a **cloud-native GNAP Authorization Server (AS)** and supporting libraries for **Resource Servers (RS)**.
+
+This project is not production-ready. It is published to encourage feedback, experimentation, and contributions from the community.
 
 ---
 
 ## Features
 
-* **GNAP Authorization Server**: Implements `/grant`, `/continue`, `/introspect`, and JWKS endpoints
-* **Proof-of-Possession Tokens**: Detached JWS, HTTP Message Signatures, DPoP, and mTLS support
-* **Short-Lived, Key-Bound Access Tokens**: Configurable TTL, audience, and constraints
-* **Policy Integration**: Adapter for [OpenFGA](https://openfga.dev/) or other policy engines (e.g., Zanzibar-style graphs)
-* **Resource Server Toolkit**: Example RS demo and importable client for introspection & JWKS fetching
-* **Security First**: Audit logging, key rotation, revocation, and step-up authentication flows
+* **GNAP Authorization Server**: Manages grant lifecycle and token issuance
+* **Proof-of-Possession Tokens**: DPoP, mTLS, detached JWS, and HTTP message signatures
+* **Short-Lived, Key-Bound Tokens**: Configurable TTL, audience, and constraints
+* **Resource Server Toolkit**: RS discovery, introspection, and resource registration (per RFC 9767)
+* **Policy Integration**: Adapters for [OpenFGA](https://openfga.dev/) or other policy engines (Zanzibar-style graphs)
+* **Security First**: Key rotation, audit logging, revocation, and step-up authentication flows
 
 ---
 
@@ -21,39 +23,35 @@ It provides a production-ready **Authorization Server (AS)** and supporting libr
 ```
 gnap-go/
   cmd/
-    as/        # GNAP Authorization Server binary
-    rs-demo/   # Example Resource Server
-  internal/    # Core engine (tokens, signing, policy, storage, etc.)
-  pkg/         # Importable helper clients for RS and AS
+    as/        # GNAP authorization server
+    client/    # Example client integration 
+    demo/      # Interactive demo server
+  internal/    # Core engine: grants, tokens, signing, storage, policy
+  web/         # Web client code for demo
 ```
 
 ---
 
 ## Getting Started
 
-### Prerequisites
+### Requirements
 
 * Go 1.22+
-* Docker (for Postgres / OpenFGA integration)
+* Docker (for Postgres/OpenFGA integration)
 
 ### Run the Authorization Server
 
 ```bash
 git clone https://github.com/TwigBush/TwigBush.git
-cd gnap-go
-
-# download dependencies
+cd TwigBush
 go mod download
-
-# run the Authorization Server
 go run ./cmd/as
 ```
 
-The server listens on **`:8085`** by default.
+The AS listens on `:8085` by default.
 
 ### Run the Resource Server Demo
 
-#### TODO
 ```bash
 go run ./cmd/rs-demo
 ```
@@ -64,36 +62,78 @@ This demo validates GNAP proof-of-possession tokens against the AS.
 
 ## Example Endpoints
 
-* `POST /grant` – Request a new access token with resource hints
-* `POST /continue` – Complete an interaction or continuation flow
-* `POST /introspect` – Token introspection for Resource Servers
-* `GET /.well-known/jwks.json` – Public keys for token verification
+* `POST /grant` – Create a new grant and access token
+* `POST /continue` – Continue a grant interaction
+* `POST /introspect` – RS token introspection (RFC 9767 §3.3)
+* `GET /.well-known/jwks.json` – JWKS for token validation
+* `GET /.well-known/gnap-as-rs` – RS-facing AS discovery (RFC 9767 §3.1)
 
 ---
 
 ## Roadmap
 
 * [ ] Full DPoP support
-* [ ] Advanced RS <-> AS coordination (per RFC 9767)
-* [ ] Richer OpenFGA/Zanzibar policy integration
-* [ ] CLI tooling for admin & debugging
+* [ ] Advanced RS–AS coordination (RFC 9767 resource registration & downstream tokens)
+* [ ] Policy adapters (OpenFGA/Zanzibar)
+* [ ] CLI tooling for administration and debugging
 * [ ] Helm charts and container images
 
 See [Issues](../../issues) for active work.
 
 ---
 
+## Project Charter
+
+### Mission
+
+TwigBush exists to provide a **cloud-native, open source reference implementation of GNAP (RFC 9635)** and its extensions (e.g., RFC 9767 for RS connections).
+The project’s goal is to make **key-bound, just-in-time access control** practical for modern workloads, including multi-cloud environments, microservices, and AI/agent-driven systems.
+
+### Scope
+
+TwigBush is focused on:
+
+* A Go-based **Authorization Server (AS)** that implements GNAP grant flows
+* **Resource Server (RS) libraries and examples** for GNAP validation, introspection, and registration
+* **Pluggable policy adapters** (OpenFGA, Zanzibar-style graphs)
+* **Developer tooling** (CLI, SDKs, container images, Helm charts)
+* **Standards alignment and interoperability** with IETF GNAP work
+
+Out of scope:
+
+* Non-standard extensions not discussed in GNAP drafts
+* Proprietary connectors or commercial integrations (to be maintained outside the core repo)
+
+### Governance
+
+TwigBush follows an **open governance** model:
+
+* Decisions are made in public via GitHub issues and discussions
+* Maintainers are listed in [CONTRIBUTORS.md](../CONTRIBUTORS.md.md)
+* New maintainers are nominated and approved by existing maintainers through documented consensus
+* Community involvement from implementers, operators, and researchers is strongly encouraged
+
+### Alignment with CNCF
+
+TwigBush aligns with CNCF Sandbox goals:
+
+* **Early-stage and experimental**: intended to validate GNAP implementations and gather feedback
+* **Cloud-native focus**: written in Go, containerized, with Kubernetes-ready packaging
+* **Standards-first**: directly aligned with GNAP RFCs (9635, 9767) for interoperability
+* **Open collaboration**: seeking contributors across security, identity, payments, and AI/agent ecosystems
+
+---
+
 ## Contributing
 
-We welcome contributions of all kinds!
+TwigBush is at a **proof-of-concept stage**. Breaking changes should be expected.
+We welcome feedback, issue reports, and contributions.
 
-* See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-* Maintainers and contributors are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md).
+* See [CONTRIBUTING.md](../CONTRIBUTING.md.md) for guidelines
+* Maintainers and contributors are listed in [CONTRIBUTORS.md](../CONTRIBUTORS.md.md)
 
 ---
 
 ## License
 
 Apache License 2.0 – see [LICENSE](LICENSE) for details.
-
-

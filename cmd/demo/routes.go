@@ -22,7 +22,8 @@ func registerRoutes(r chi.Router) {
 	r.Post("/grant", grant.ServeHTTP)
 	r.Post("/continue/{grantId}", cont.ServeHTTP)
 	r.Get("/device", device.Page)
-	r.Post("/device/verify", device.VerifyForm)
+	r.Post("/device/verify", device.VerifyJSON)
+
 	r.Post("/device/consent", device.ConsentForm)
 
 	// Demo-only pieces
