@@ -56,5 +56,5 @@ func registerRoutes(r chi.Router) {
 	sse := playground.NewSSEHub()
 	r.Get("/events", sse.ServeHTTP)
 	playground.MountUI(r)
-	playground.MountDebug(r, store) // <-- add this so Approve/Deny buttons work
+	playground.MountDebug(r, store) // so Approve/Deny buttons work
 }

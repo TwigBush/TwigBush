@@ -36,12 +36,12 @@ func NewFileStore(root string, cfg Config) (*FileStore, error) {
 
 // ---------- helpers ----------
 
-func (s *FileStore) grantPath(id string) string {
-	return filepath.Join(s.root, "grants", id+".json")
+func (fileStore *FileStore) grantPath(id string) string {
+	return filepath.Join(fileStore.root, "grants", id+".json")
 }
 
-func (s *FileStore) writeGrant(g *GrantState) error {
-	path := s.grantPath(g.ID)
+func (fileStore *FileStore) writeGrant(g *GrantState) error {
+	path := fileStore.grantPath(g.ID)
 	tmp := path + ".tmp"
 
 	b, err := json.MarshalIndent(g, "", "  ")
@@ -55,8 +55,8 @@ func (s *FileStore) writeGrant(g *GrantState) error {
 	return os.Rename(tmp, path)
 }
 
-func (s *FileStore) readGrant(id string) (*GrantState, error) {
-	path := s.grantPath(id)
+func (fileStore *FileStore) readGrant(id string) (*GrantState, error) {
+	path := fileStore.grantPath(id)
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -71,8 +71,8 @@ func (s *FileStore) readGrant(id string) (*GrantState, error) {
 	return &g, nil
 }
 
-func (s *FileStore) listGrantFiles() ([]string, error) {
-	dir := filepath.Join(s.root, "grants")
+func (fileStore *FileStore) listGrantFiles() ([]string, error) {
+	dir := filepath.Join(fileStore.root, "grants")
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -97,166 +97,166 @@ func randHexDuplicate(n int) string {
 
 // ---------- interface implementation ----------
 
-func (s *FileStore) CreateGrant(ctx context.Context, req GrantRequest) (*GrantState, error) {
+func (fileStore *FileStore) CreateGrant(ctx context.Context, req GrantRequest) (*GrantState, error) {
 	now := time.Now().UTC()
-	exp := now.Add(time.Duration(s.cfg.GrantTTLSeconds) * time.Second)
+	expiration := now.Add(time.Duration(fileStore.cfg.GrantTTLSeconds) * time.Second)
 
-	cont := randHex(16) // 32 hex chars
+	continueToken := randHex(16) // 32 hex chars
 
 	// Collect locations as JSON, same as memory store
-	var locs []string
+	var locations []string
 	for _, a := range req.Access {
 		if len(a.Locations) > 0 {
-			locs = append(locs, a.Locations...)
+			locations = append(locations, a.Locations...)
 		}
 	}
 	var locRaw json.RawMessage
-	if len(locs) > 0 {
-		locRaw, _ = json.Marshal(locs)
+	if len(locations) > 0 {
+		locRaw, _ = json.Marshal(locations)
 	}
 
 	uc := RandUserCode()
 
-	g := &GrantState{
+	grantState := &GrantState{
 		ID:                uuid.NewString(),
 		Status:            GrantStatusPending,
 		Client:            req.Client,
 		RequestedAccess:   req.Access,
-		ContinuationToken: cont,
+		ContinuationToken: continueToken,
 		TokenFormat:       req.TokenFormat,
 		CreatedAt:         now,
 		UpdatedAt:         now,
-		ExpiresAt:         exp,
+		ExpiresAt:         expiration,
 		Locations:         locRaw,
 		UserCode:          &uc,
 	}
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if err := s.writeGrant(g); err != nil {
+	fileStore.mu.Lock()
+	defer fileStore.mu.Unlock()
+	if err := fileStore.writeGrant(grantState); err != nil {
 		return nil, err
 	}
-	return g, nil
+	return grantState, nil
 }
 
-func (s *FileStore) MarkCodeVerified(ctx context.Context, id string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (fileStore *FileStore) MarkCodeVerified(ctx context.Context, id string) error {
+	fileStore.mu.Lock()
+	defer fileStore.mu.Unlock()
 
-	g, err := s.readGrant(id)
+	grant, err := fileStore.readGrant(id)
 	if err != nil {
 		return err
 	}
-	if g.Status != GrantStatusPending {
+	if grant.Status != GrantStatusPending {
 		return fmt.Errorf("grant not pending")
 	}
-	g.CodeVerified = true
-	g.UpdatedAt = time.Now().UTC()
-	return s.writeGrant(g)
+	grant.CodeVerified = true
+	grant.UpdatedAt = time.Now().UTC()
+	return fileStore.writeGrant(grant)
 }
 
-func (s *FileStore) GetGrant(ctx context.Context, id string) (*GrantState, bool) {
-	s.mu.Lock() // we may update status to expired
-	defer s.mu.Unlock()
+func (fileStore *FileStore) GetGrant(ctx context.Context, id string) (*GrantState, bool) {
+	fileStore.mu.Lock() // we may update status to expired
+	defer fileStore.mu.Unlock()
 
-	g, err := s.readGrant(id)
+	grant, err := fileStore.readGrant(id)
 	if err != nil {
 		return nil, false
 	}
 
 	now := time.Now().UTC()
-	if now.After(g.ExpiresAt) && g.Status != GrantStatusExpired {
-		g.Status = GrantStatusExpired
-		g.UpdatedAt = now
-		_ = s.writeGrant(g)
+	if now.After(grant.ExpiresAt) && grant.Status != GrantStatusExpired {
+		grant.Status = GrantStatusExpired
+		grant.UpdatedAt = now
+		_ = fileStore.writeGrant(grant)
 	}
-	return g, true
+	return grant, true
 }
 
-func (s *FileStore) FindGrantByUserCodePending(ctx context.Context, code string) (*GrantState, bool) {
+func (fileStore *FileStore) FindGrantByUserCodePending(ctx context.Context, code string) (*GrantState, bool) {
 	if code == "" {
 		return nil, false
 	}
 
-	s.mu.RLock()
-	files, err := s.listGrantFiles()
-	s.mu.RUnlock()
+	fileStore.mu.RLock()
+	files, err := fileStore.listGrantFiles()
+	fileStore.mu.RUnlock()
 	if err != nil {
 		return nil, false
 	}
 
 	// Linear scan is fine for local mode. If needed later, add a small index file or map.
 	for _, p := range files {
-		s.mu.RLock()
+		fileStore.mu.RLock()
 		b, err := os.ReadFile(p)
-		s.mu.RUnlock()
+		fileStore.mu.RUnlock()
 		if err != nil {
 			continue
 		}
-		var g GrantState
-		if err := json.Unmarshal(b, &g); err != nil {
+		var grantState GrantState
+		if err := json.Unmarshal(b, &grantState); err != nil {
 			continue
 		}
-		if g.Status != GrantStatusPending {
+		if grantState.Status != GrantStatusPending {
 			continue
 		}
-		if g.UserCode != nil && *g.UserCode == code {
-			return &g, true
+		if grantState.UserCode != nil && *grantState.UserCode == code {
+			return &grantState, true
 		}
 	}
 	return nil, false
 }
 
-func (s *FileStore) ApproveGrant(ctx context.Context, id string, approved []AccessItem, subject string) (*GrantState, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (fileStore *FileStore) ApproveGrant(ctx context.Context, id string, approved []AccessItem, subject string) (*GrantState, error) {
+	fileStore.mu.Lock()
+	defer fileStore.mu.Unlock()
 
-	g, err := s.readGrant(id)
+	grant, err := fileStore.readGrant(id)
 	if err != nil {
 		return nil, err
 	}
-	if g.Status != GrantStatusPending {
+	if grant.Status != GrantStatusPending {
 		return nil, fmt.Errorf("grant not pending")
 	}
-	if !g.CodeVerified {
+	if !grant.CodeVerified {
 		return nil, fmt.Errorf("code not verified")
 	}
 	if len(approved) == 0 {
-		approved = g.RequestedAccess
+		approved = grant.RequestedAccess
 	}
 
-	g.Status = GrantStatusApproved
-	g.ApprovedAccess = approved
-	g.Subject = &subject
-	g.UpdatedAt = time.Now().UTC()
+	grant.Status = GrantStatusApproved
+	grant.ApprovedAccess = approved
+	grant.Subject = &subject
+	grant.UpdatedAt = time.Now().UTC()
 
-	if err := s.writeGrant(g); err != nil {
+	if err := fileStore.writeGrant(grant); err != nil {
 		return nil, err
 	}
-	return g, nil
+	return grant, nil
 }
 
-func (s *FileStore) DenyGrant(ctx context.Context, id string) (*GrantState, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (fileStore *FileStore) DenyGrant(ctx context.Context, id string) (*GrantState, error) {
+	fileStore.mu.Lock()
+	defer fileStore.mu.Unlock()
 
-	g, err := s.readGrant(id)
+	grant, err := fileStore.readGrant(id)
 	if err != nil {
 		return nil, errors.New("grant not found")
 	}
 
 	now := time.Now().UTC()
-	if now.After(g.ExpiresAt) {
-		g.Status = GrantStatusExpired
-		g.UpdatedAt = now
-		_ = s.writeGrant(g)
+	if now.After(grant.ExpiresAt) {
+		grant.Status = GrantStatusExpired
+		grant.UpdatedAt = now
+		_ = fileStore.writeGrant(grant)
 		return nil, errors.New("grant expired")
 	}
 
-	g.Status = GrantStatusDenied
-	g.UpdatedAt = now
-	if err := s.writeGrant(g); err != nil {
+	grant.Status = GrantStatusDenied
+	grant.UpdatedAt = now
+	if err := fileStore.writeGrant(grant); err != nil {
 		return nil, err
 	}
-	return g, nil
+	return grant, nil
 }
