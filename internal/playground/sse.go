@@ -3,6 +3,7 @@ package playground
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 	"sync"
 	"time"
@@ -42,6 +43,7 @@ func (h *SSEHub) Broadcast(ev GrantEvent) {
 }
 
 func (h *SSEHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log.Printf("checking for events")
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
@@ -56,6 +58,7 @@ func (h *SSEHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		case <-r.Context().Done():
 			return
 		case ev := <-events:
+			log.Printf("sending event: %+v", ev)
 			w.Write([]byte("event: grant\ndata: "))
 			_ = enc.Encode(ev)
 			w.Write([]byte("\n"))
