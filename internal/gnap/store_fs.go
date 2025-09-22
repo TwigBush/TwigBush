@@ -11,16 +11,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TwigBush/gnap-go/internal/types"
 	"github.com/google/uuid"
 )
 
 type FileStore struct {
 	root string
-	cfg  Config
+	cfg  types.Config
 	mu   sync.RWMutex // process-local concurrency
 }
 
-func NewFileStore(root string, cfg Config) (*FileStore, error) {
+func NewFileStore(root string, cfg types.Config) (*FileStore, error) {
 	// Make parent ~/.twigbush with 0700 when possible
 	if err := os.MkdirAll(filepath.Dir(filepath.Join(root, "x")), 0o700); err != nil {
 		return nil, fmt.Errorf("create parent dir: %w", err)
@@ -38,7 +39,7 @@ func (fileStore *FileStore) grantPath(id string) string {
 	return filepath.Join(fileStore.root, "grants", id+".json")
 }
 
-func (fileStore *FileStore) writeGrant(g *GrantState) error {
+func (fileStore *FileStore) writeGrant(g *types.GrantState) error {
 	path := fileStore.grantPath(g.ID)
 	tempFilePath := path + ".tempFilePath"
 
@@ -53,7 +54,7 @@ func (fileStore *FileStore) writeGrant(g *GrantState) error {
 	return os.Rename(tempFilePath, path)
 }
 
-func (fileStore *FileStore) readGrant(id string) (*GrantState, error) {
+func (fileStore *FileStore) readGrant(id string) (*types.GrantState, error) {
 	path := fileStore.grantPath(id)
 	bytes, err := os.ReadFile(path)
 	if err != nil {
@@ -62,7 +63,7 @@ func (fileStore *FileStore) readGrant(id string) (*GrantState, error) {
 		}
 		return nil, err
 	}
-	var grantState GrantState
+	var grantState types.GrantState
 	if err := json.Unmarshal(bytes, &grantState); err != nil {
 		return nil, err
 	}
@@ -89,7 +90,7 @@ func (fileStore *FileStore) listGrantFiles() ([]string, error) {
 
 // ---------- interface implementation ----------
 
-func (fileStore *FileStore) CreateGrant(ctx context.Context, req GrantRequest) (*GrantState, error) {
+func (fileStore *FileStore) CreateGrant(ctx context.Context, req types.GrantRequest) (*types.GrantState, error) {
 	now := time.Now().UTC()
 	expiration := now.Add(time.Duration(fileStore.cfg.GrantTTLSeconds) * time.Second)
 
@@ -109,9 +110,9 @@ func (fileStore *FileStore) CreateGrant(ctx context.Context, req GrantRequest) (
 
 	uc := RandUserCode()
 
-	grantState := &GrantState{
+	grantState := &types.GrantState{
 		ID:                uuid.NewString(),
-		Status:            GrantStatusPending,
+		Status:            types.GrantStatusPending,
 		Client:            req.Client,
 		RequestedAccess:   req.Access,
 		ContinuationToken: continueToken,
@@ -139,7 +140,7 @@ func (fileStore *FileStore) MarkCodeVerified(ctx context.Context, id string) err
 	if err != nil {
 		return err
 	}
-	if grant.Status != GrantStatusPending {
+	if grant.Status != types.GrantStatusPending {
 		return fmt.Errorf("grant not pending")
 	}
 	grant.CodeVerified = true
@@ -147,7 +148,7 @@ func (fileStore *FileStore) MarkCodeVerified(ctx context.Context, id string) err
 	return fileStore.writeGrant(grant)
 }
 
-func (fileStore *FileStore) GetGrant(ctx context.Context, id string) (*GrantState, bool) {
+func (fileStore *FileStore) GetGrant(ctx context.Context, id string) (*types.GrantState, bool) {
 	fileStore.mu.Lock() // we may update status to expired
 	defer fileStore.mu.Unlock()
 
@@ -157,15 +158,15 @@ func (fileStore *FileStore) GetGrant(ctx context.Context, id string) (*GrantStat
 	}
 
 	now := time.Now().UTC()
-	if now.After(grant.ExpiresAt) && grant.Status != GrantStatusExpired {
-		grant.Status = GrantStatusExpired
+	if now.After(grant.ExpiresAt) && grant.Status != types.GrantStatusExpired {
+		grant.Status = types.GrantStatusExpired
 		grant.UpdatedAt = now
 		_ = fileStore.writeGrant(grant)
 	}
 	return grant, true
 }
 
-func (fileStore *FileStore) FindGrantByUserCodePending(ctx context.Context, code string) (*GrantState, bool) {
+func (fileStore *FileStore) FindGrantByUserCodePending(ctx context.Context, code string) (*types.GrantState, bool) {
 	if code == "" {
 		return nil, false
 	}
@@ -185,11 +186,11 @@ func (fileStore *FileStore) FindGrantByUserCodePending(ctx context.Context, code
 		if err != nil {
 			continue
 		}
-		var grantState GrantState
+		var grantState types.GrantState
 		if err := json.Unmarshal(b, &grantState); err != nil {
 			continue
 		}
-		if grantState.Status != GrantStatusPending {
+		if grantState.Status != types.GrantStatusPending {
 			continue
 		}
 		if grantState.UserCode != nil && *grantState.UserCode == code {
@@ -199,7 +200,7 @@ func (fileStore *FileStore) FindGrantByUserCodePending(ctx context.Context, code
 	return nil, false
 }
 
-func (fileStore *FileStore) ApproveGrant(ctx context.Context, id string, approved []AccessItem, subject string) (*GrantState, error) {
+func (fileStore *FileStore) ApproveGrant(ctx context.Context, id string, approved []types.AccessItem, subject string) (*types.GrantState, error) {
 	fileStore.mu.Lock()
 	defer fileStore.mu.Unlock()
 
@@ -207,7 +208,7 @@ func (fileStore *FileStore) ApproveGrant(ctx context.Context, id string, approve
 	if err != nil {
 		return nil, err
 	}
-	if grant.Status != GrantStatusPending {
+	if grant.Status != types.GrantStatusPending {
 		return nil, fmt.Errorf("grant not pending")
 	}
 	if !grant.CodeVerified {
@@ -217,7 +218,7 @@ func (fileStore *FileStore) ApproveGrant(ctx context.Context, id string, approve
 		approved = grant.RequestedAccess
 	}
 
-	grant.Status = GrantStatusApproved
+	grant.Status = types.GrantStatusApproved
 	grant.ApprovedAccess = approved
 	grant.Subject = &subject
 	grant.UpdatedAt = time.Now().UTC()
@@ -228,7 +229,7 @@ func (fileStore *FileStore) ApproveGrant(ctx context.Context, id string, approve
 	return grant, nil
 }
 
-func (fileStore *FileStore) DenyGrant(ctx context.Context, id string) (*GrantState, error) {
+func (fileStore *FileStore) DenyGrant(ctx context.Context, id string) (*types.GrantState, error) {
 	fileStore.mu.Lock()
 	defer fileStore.mu.Unlock()
 
@@ -239,13 +240,13 @@ func (fileStore *FileStore) DenyGrant(ctx context.Context, id string) (*GrantSta
 
 	now := time.Now().UTC()
 	if now.After(grant.ExpiresAt) {
-		grant.Status = GrantStatusExpired
+		grant.Status = types.GrantStatusExpired
 		grant.UpdatedAt = now
 		_ = fileStore.writeGrant(grant)
 		return nil, errors.New("grant expired")
 	}
 
-	grant.Status = GrantStatusDenied
+	grant.Status = types.GrantStatusDenied
 	grant.UpdatedAt = now
 	if err := fileStore.writeGrant(grant); err != nil {
 		return nil, err

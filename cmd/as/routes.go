@@ -7,6 +7,7 @@ import (
 
 	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/handlers"
+	"github.com/TwigBush/gnap-go/internal/types"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -25,9 +26,9 @@ func defaultDataDir() string {
 }
 
 func registerRoutes(r chi.Router) {
-	cfg := gnap.Config{GrantTTLSeconds: 120}
-
-	var store gnap.Store
+	cfg := types.Config{GrantTTLSeconds: 120}
+	
+	var store types.Store
 	switch os.Getenv("TWIGBUSH_STORE") {
 	case "fs":
 		dir := defaultDataDir()

@@ -4,17 +4,17 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/httpx"
 	"github.com/TwigBush/gnap-go/internal/sign"
+	"github.com/TwigBush/gnap-go/internal/types"
 )
 
 type GrantHandler struct {
-	Store       gnap.Store
+	Store       types.Store
 	WaitSeconds int // how long the client should wait before polling /continue
 }
 
-func NewGrantHandler(store gnap.Store) *GrantHandler {
+func NewGrantHandler(store types.Store) *GrantHandler {
 	return &GrantHandler{Store: store, WaitSeconds: 5}
 }
 
@@ -25,7 +25,7 @@ func (h *GrantHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req gnap.GrantRequest
+	var req types.GrantRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid JSON")
 		return
@@ -48,16 +48,16 @@ func (h *GrantHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		code = *state.UserCode
 	}
 
-	resp := gnap.GrantResponse{
-		Continue: gnap.Continue{
+	resp := types.GrantResponse{
+		Continue: types.Continue{
 			AccessToken: state.ContinuationToken,
 			URI:         base + "/continue/" + state.ID,
 			Wait:        h.WaitSeconds,
 		},
 
-		Interact: gnap.InteractOut{
+		Interact: types.InteractOut{
 			Expires: state.ExpiresAt,
-			UserCode: gnap.UserCode{
+			UserCode: types.UserCode{
 				Code: code,
 				URI:  base + "/device",
 			},

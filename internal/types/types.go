@@ -1,4 +1,4 @@
-package gnap
+package types
 
 import (
 	"context"
@@ -95,4 +95,66 @@ type Store interface {
 	DenyGrant(ctx context.Context, id string) (*GrantState, error)
 
 	MarkCodeVerified(ctx context.Context, id string) error
+}
+
+type Claims struct {
+	Issuer   string      `json:"iss"`
+	Subject  string      `json:"sub"`
+	Audience string      `json:"aud"`
+	Exp      int64       `json:"exp"`
+	Iat      int64       `json:"iat"`
+	Jti      string      `json:"jti"`
+	Access   []string    `json:"access"`
+	Key      interface{} `json:"key"`
+}
+
+type KeyPair struct {
+	PrivateKey JWK
+	PublicKey  JWK
+}
+
+type Proof string
+
+const (
+	HTTPSig    Proof = "httpsig"
+	MTLs       Proof = "mtls"
+	DPoP       Proof = "dpop"
+	JSECP256k1 Proof = "jsecp256k1"
+)
+
+type ProofMethod struct {
+	HTTPSig Proof
+	MTLs    Proof
+	DPoP    Proof
+}
+
+type Configuration struct {
+	ClientID      string
+	ClientName    string
+	ClientVersion string
+	ClientURI     string
+	KeyPair       KeyPair
+	ProofMethod   ProofMethod
+	AsURL         string
+}
+
+type Continue struct {
+	AccessToken string `json:"access_token"`
+	URI         string `json:"uri"`
+	Wait        int    `json:"wait"` // seconds to poll before calling /continue
+}
+
+type UserCode struct {
+	Code string `json:"code"`
+	URI  string `json:"uri"`
+}
+
+type InteractOut struct {
+	Expires  time.Time `json:"expires"`
+	UserCode UserCode  `json:"user_code"`
+}
+
+type GrantResponse struct {
+	Continue Continue    `json:"continue"`
+	Interact InteractOut `json:"interact"`
 }

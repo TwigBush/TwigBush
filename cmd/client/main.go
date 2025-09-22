@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"github.com/TwigBush/gnap-go/internal/client"
-	"github.com/TwigBush/gnap-go/internal/gnap"
+	"github.com/TwigBush/gnap-go/internal/types"
 )
 
 func main() {
@@ -35,27 +35,27 @@ func main() {
 	xBase64 := base64.RawURLEncoding.EncodeToString(xPadded)
 	yBase64 := base64.RawURLEncoding.EncodeToString(yPadded)
 
-	config := client.Configuration{
+	config := types.Configuration{
 		ClientID:      "example-client",
 		ClientName:    "GNAP Go Client",
 		ClientVersion: "1.0.0",
 		ClientURI:     "https://example.com/client",
-		KeyPair: client.KeyPair{
-			PrivateKey: gnap.JWK{
+		KeyPair: types.KeyPair{
+			PrivateKey: types.JWK{
 				Kty: "EC",
 				Crv: "P-256",
 				X:   xBase64,
 				Y:   yBase64,
 			},
-			PublicKey: gnap.JWK{
+			PublicKey: types.JWK{
 				Kty: "EC",
 				Crv: "P-256",
 				X:   xBase64,
 				Y:   yBase64,
 			},
 		},
-		ProofMethod: client.ProofMethod{
-			HTTPSig: client.HTTPSig,
+		ProofMethod: types.ProofMethod{
+			HTTPSig: types.HTTPSig,
 		},
 		AsURL: getEnvOrDefault("GNAP_AS_URL", "http://localhost:8085"),
 	}
@@ -64,7 +64,7 @@ func main() {
 	gnapClient := client.NewGnapClient(config)
 
 	// Define resources to request access to
-	resources := []gnap.AccessItem{
+	resources := []types.AccessItem{
 		{
 			Type:      "photo-api",
 			Actions:   []string{"read", "write"},
@@ -132,33 +132,6 @@ func main() {
 	} else {
 		fmt.Printf("POST Response: %+v\n", postResponse)
 	}
-}
-
-// generateECKeyPair generates a P-256 EC key pair and returns it as JWK
-func generateECKeyPair() (*ecdsa.PrivateKey, gnap.JWK, error) {
-	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	if err != nil {
-		return nil, gnap.JWK{}, err
-	}
-
-	// Extract public key coordinates
-	xBytes := privateKey.PublicKey.X.Bytes()
-	yBytes := privateKey.PublicKey.Y.Bytes()
-
-	// Ensure coordinates are 32 bytes (P-256 uses 256-bit/32-byte coordinates)
-	xPadded := make([]byte, 32)
-	yPadded := make([]byte, 32)
-	copy(xPadded[32-len(xBytes):], xBytes)
-	copy(yPadded[32-len(yBytes):], yBytes)
-
-	jwk := gnap.JWK{
-		Kty: "EC",
-		Crv: "P-256",
-		X:   base64.RawURLEncoding.EncodeToString(xPadded),
-		Y:   base64.RawURLEncoding.EncodeToString(yPadded),
-	}
-
-	return privateKey, jwk, nil
 }
 
 // getEnvOrDefault returns the value of an environment variable or a default value

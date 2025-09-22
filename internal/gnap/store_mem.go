@@ -10,23 +10,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/TwigBush/gnap-go/internal/types"
 	"github.com/google/uuid"
 )
 
 type MemoryStore struct {
 	mu     sync.RWMutex
-	grants map[string]*GrantState
-	cfg    Config
+	grants map[string]*types.GrantState
+	cfg    types.Config
 }
 
-func NewMemoryStore(cfg Config) *MemoryStore {
+func NewMemoryStore(cfg types.Config) *MemoryStore {
 	return &MemoryStore{
-		grants: make(map[string]*GrantState),
+		grants: make(map[string]*types.GrantState),
 		cfg:    cfg,
 	}
 }
 
-func (s *MemoryStore) CreateGrant(ctx context.Context, req GrantRequest) (*GrantState, error) {
+func (s *MemoryStore) CreateGrant(ctx context.Context, req types.GrantRequest) (*types.GrantState, error) {
 	now := time.Now().UTC()
 	exp := now.Add(time.Duration(s.cfg.GrantTTLSeconds) * time.Second)
 
@@ -46,9 +47,9 @@ func (s *MemoryStore) CreateGrant(ctx context.Context, req GrantRequest) (*Grant
 
 	uc := RandUserCode()
 
-	state := &GrantState{
+	state := &types.GrantState{
 		ID:                uuid.NewString(),
-		Status:            GrantStatusPending,
+		Status:            types.GrantStatusPending,
 		Client:            req.Client,
 		RequestedAccess:   req.Access,
 		ContinuationToken: cont,
@@ -75,7 +76,7 @@ func (s *MemoryStore) MarkCodeVerified(ctx context.Context, id string) error {
 	if !ok {
 		return fmt.Errorf("grant not found")
 	}
-	if g.Status != GrantStatusPending {
+	if g.Status != types.GrantStatusPending {
 		return fmt.Errorf("grant not pending")
 	}
 
@@ -85,7 +86,7 @@ func (s *MemoryStore) MarkCodeVerified(ctx context.Context, id string) error {
 	return nil
 }
 
-func (s *MemoryStore) GetGrant(ctx context.Context, id string) (*GrantState, bool) {
+func (s *MemoryStore) GetGrant(ctx context.Context, id string) (*types.GrantState, bool) {
 	s.mu.RLock()
 	g, ok := s.grants[id]
 	s.mu.RUnlock()
@@ -95,9 +96,9 @@ func (s *MemoryStore) GetGrant(ctx context.Context, id string) (*GrantState, boo
 
 	// Mutate to expired-on-read if TTL elapsed (matches your Java behavior)
 	now := time.Now().UTC()
-	if now.After(g.ExpiresAt) && g.Status != GrantStatusExpired {
+	if now.After(g.ExpiresAt) && g.Status != types.GrantStatusExpired {
 		s.mu.Lock()
-		g.Status = GrantStatusExpired
+		g.Status = types.GrantStatusExpired
 		g.UpdatedAt = now
 		s.grants[id] = g
 		s.mu.Unlock()
@@ -106,7 +107,7 @@ func (s *MemoryStore) GetGrant(ctx context.Context, id string) (*GrantState, boo
 	return g, true
 }
 
-func (s *MemoryStore) FindGrantByUserCodePending(ctx context.Context, code string) (*GrantState, bool) {
+func (s *MemoryStore) FindGrantByUserCodePending(ctx context.Context, code string) (*types.GrantState, bool) {
 	if code == "" {
 		return nil, false
 	}
@@ -114,7 +115,7 @@ func (s *MemoryStore) FindGrantByUserCodePending(ctx context.Context, code strin
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, g := range s.grants {
-		if g == nil || g.Status != GrantStatusPending {
+		if g == nil || g.Status != types.GrantStatusPending {
 			continue
 		}
 		if g.UserCode != nil && *g.UserCode == code {
@@ -126,8 +127,8 @@ func (s *MemoryStore) FindGrantByUserCodePending(ctx context.Context, code strin
 }
 
 // AccessItem -> GrantedAccess projector (kept for when/if you store GrantedAccess explicitly)
-func accessToGranted(a AccessItem) GrantedAccess {
-	ga := GrantedAccess{Type: a.Type}
+func accessToGranted(a types.AccessItem) types.GrantedAccess {
+	ga := types.GrantedAccess{Type: a.Type}
 	// resource_id: prefer explicit, else fallback to "<type>:*"
 	if a.ResourceID != "" {
 		ga.ResourceID = a.ResourceID
@@ -142,7 +143,7 @@ func accessToGranted(a AccessItem) GrantedAccess {
 	return ga
 }
 
-func (s *MemoryStore) ApproveGrant(ctx context.Context, id string, approved []AccessItem, subject string) (*GrantState, error) {
+func (s *MemoryStore) ApproveGrant(ctx context.Context, id string, approved []types.AccessItem, subject string) (*types.GrantState, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -150,7 +151,7 @@ func (s *MemoryStore) ApproveGrant(ctx context.Context, id string, approved []Ac
 	if !ok {
 		return nil, fmt.Errorf("grant not found")
 	}
-	if g.Status != GrantStatusPending {
+	if g.Status != types.GrantStatusPending {
 		return nil, fmt.Errorf("grant not pending")
 	}
 	// Enforce device code ordering for production-like behavior
@@ -163,7 +164,7 @@ func (s *MemoryStore) ApproveGrant(ctx context.Context, id string, approved []Ac
 		approved = g.RequestedAccess
 	}
 
-	g.Status = GrantStatusApproved
+	g.Status = types.GrantStatusApproved
 	g.ApprovedAccess = approved
 	g.Subject = &subject
 	g.UpdatedAt = time.Now().UTC()
@@ -171,7 +172,7 @@ func (s *MemoryStore) ApproveGrant(ctx context.Context, id string, approved []Ac
 	return g, nil
 }
 
-func (s *MemoryStore) DenyGrant(ctx context.Context, id string) (*GrantState, error) {
+func (s *MemoryStore) DenyGrant(ctx context.Context, id string) (*types.GrantState, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -182,13 +183,13 @@ func (s *MemoryStore) DenyGrant(ctx context.Context, id string) (*GrantState, er
 
 	now := time.Now().UTC()
 	if now.After(g.ExpiresAt) {
-		g.Status = GrantStatusExpired
+		g.Status = types.GrantStatusExpired
 		g.UpdatedAt = now
 		s.grants[id] = g
 		return nil, errors.New("grant expired")
 	}
 
-	g.Status = GrantStatusDenied
+	g.Status = types.GrantStatusDenied
 	g.UpdatedAt = now
 	s.grants[id] = g
 	return g, nil

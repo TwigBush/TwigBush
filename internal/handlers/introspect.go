@@ -6,10 +6,8 @@ import (
 )
 
 func Introspect(w http.ResponseWriter, r *http.Request) {
-	// verify request proof (detached JWS or DPoP)
-	// decode GNAP grant request
-	// call policy.Check(...)
-	// issue short TTL key-bound token or start interact flow
+	//TODO: verify request proof (detached JWS or DPoP)
+	// extract the token from the request
 	log.Print("Introspect called")
 	w.WriteHeader(http.StatusNotImplemented)
 }
