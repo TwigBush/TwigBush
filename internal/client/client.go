@@ -9,18 +9,18 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/token"
+	"github.com/TwigBush/gnap-go/internal/types"
 )
 
 type GnapClient struct {
 	auth   *AuthFlow
 	signer *SignatureGenerator
-	config Configuration
+	config types.Configuration
 	client *http.Client
 }
 
-func NewGnapClient(config Configuration) *GnapClient {
+func NewGnapClient(config types.Configuration) *GnapClient {
 	return &GnapClient{
 		auth:   NewAuthFlow(config),
 		signer: NewSignatureGenerator(config.KeyPair.PrivateKey),
@@ -29,7 +29,7 @@ func NewGnapClient(config Configuration) *GnapClient {
 	}
 }
 
-func (c *GnapClient) Authorize(ctx context.Context, resources []gnap.AccessItem, interactive bool) (*token.Token, error) {
+func (c *GnapClient) Authorize(ctx context.Context, resources []types.AccessItem, interactive bool) (*token.Token, error) {
 	if !interactive {
 		return nil, fmt.Errorf("no valid token and non-interactive mode")
 	}
