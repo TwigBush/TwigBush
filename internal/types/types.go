@@ -158,3 +158,24 @@ type GrantResponse struct {
 	Continue Continue    `json:"continue"`
 	Interact InteractOut `json:"interact"`
 }
+
+type IntrospectionRequest struct {
+	AccessToken    string      `json:"access_token"`
+	Proof          string      `json:"proof,omitempty"`
+	ResourceServer interface{} `json:"resource_server"`
+	Access         []string    `json:"access,omitempty"`
+}
+
+type IntrospectionResponse struct {
+	Active     bool                   `json:"active"`
+	Access     []interface{}          `json:"access,omitempty"`
+	Key        *ClientKey             `json:"key,omitempty"`
+	Flags      []string               `json:"flags,omitempty"`
+	Exp        *int64                 `json:"exp,omitempty"`
+	Iat        *int64                 `json:"iat,omitempty"`
+	Nbf        *int64                 `json:"nbf,omitempty"`
+	Aud        interface{}            `json:"aud,omitempty"`
+	Sub        string                 `json:"sub,omitempty"`
+	Iss        string                 `json:"iss,omitempty"`
+	InstanceID string                 `json:"instance_id,omitempty"`
+}
