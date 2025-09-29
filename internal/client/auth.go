@@ -10,19 +10,19 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/token"
+	"github.com/TwigBush/gnap-go/internal/types"
 )
 
 // AuthFlow handles GNAP authentication flows
 type AuthFlow struct {
-	config Configuration
+	config types.Configuration
 	signer *SignatureGenerator
 	client *http.Client
 }
 
 // NewAuthFlow creates a new AuthFlow instance
-func NewAuthFlow(config Configuration) *AuthFlow {
+func NewAuthFlow(config types.Configuration) *AuthFlow {
 	return &AuthFlow{
 		config: config,
 		signer: NewSignatureGenerator(config.KeyPair.PrivateKey),
@@ -31,17 +31,17 @@ func NewAuthFlow(config Configuration) *AuthFlow {
 }
 
 // RequestGrant initiates a GNAP grant request
-func (a *AuthFlow) RequestGrant(resources []gnap.AccessItem) (*gnap.GrantResponse, error) {
+func (a *AuthFlow) RequestGrant(resources []types.AccessItem) (*types.GrantResponse, error) {
 	// Prepare grant request
-	grantRequest := gnap.GrantRequest{
-		Client: gnap.Client{
-			Key: gnap.ClientKey{
+	grantRequest := types.GrantRequest{
+		Client: types.Client{
+			Key: types.ClientKey{
 				Proof: string(a.config.ProofMethod.HTTPSig),
 				JWK:   a.config.KeyPair.PublicKey,
 			},
 		},
 		Access: resources,
-		Interact: &gnap.Interact{
+		Interact: &types.Interact{
 			Start: []string{"user_code"},
 		},
 	}
@@ -81,7 +81,7 @@ func (a *AuthFlow) RequestGrant(resources []gnap.AccessItem) (*gnap.GrantRespons
 		return nil, fmt.Errorf("grant request failed with status %d: %v", resp.StatusCode, errResp)
 	}
 
-	var grantResponse gnap.GrantResponse
+	var grantResponse types.GrantResponse
 	if err := json.NewDecoder(resp.Body).Decode(&grantResponse); err != nil {
 		return nil, fmt.Errorf("failed to decode grant response: %w", err)
 	}
@@ -90,7 +90,7 @@ func (a *AuthFlow) RequestGrant(resources []gnap.AccessItem) (*gnap.GrantRespons
 }
 
 // PollForToken polls for token approval
-func (a *AuthFlow) PollForToken(ctx context.Context, grant *gnap.GrantResponse) (*token.Token, error) {
+func (a *AuthFlow) PollForToken(ctx context.Context, grant *types.GrantResponse) (*token.Token, error) {
 	if grant.Continue.URI == "" {
 		return nil, errors.New("no continuation handle provided")
 	}
@@ -142,9 +142,9 @@ func (a *AuthFlow) PollForToken(ctx context.Context, grant *gnap.GrantResponse) 
 		switch resp.StatusCode {
 		case http.StatusOK:
 			var continueResponse struct {
-				AccessToken *token.Token        `json:"access_token,omitempty"`
-				Continue    *gnap.Continue      `json:"continue,omitempty"`
-				Error       *gnap.ErrorResponse `json:"error,omitempty"`
+				AccessToken *token.Token         `json:"access_token,omitempty"`
+				Continue    *types.Continue      `json:"continue,omitempty"`
+				Error       *types.ErrorResponse `json:"error,omitempty"`
 			}
 
 			if err := json.NewDecoder(resp.Body).Decode(&continueResponse); err != nil {

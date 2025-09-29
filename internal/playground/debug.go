@@ -5,10 +5,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/TwigBush/gnap-go/internal/gnap"
+	"github.com/TwigBush/gnap-go/internal/types"
 )
 
-func MountDebug(r chi.Router, store gnap.Store) {
+func MountDebug(r chi.Router, store types.Store) {
 	r.Post("/debug/approve/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id := chi.URLParam(r, "id")
 		g, ok := store.GetGrant(r.Context(), id)

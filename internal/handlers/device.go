@@ -8,17 +8,17 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/httpx"
+	"github.com/TwigBush/gnap-go/internal/types"
 )
 
 var userCodeRe = regexp.MustCompile(`^[A-Z0-9]{4}-[A-Z0-9]{4}$`)
 
 type DeviceHandler struct {
-	Store gnap.Store
+	Store types.Store
 }
 
-func NewDeviceHandler(store gnap.Store) *DeviceHandler {
+func NewDeviceHandler(store types.Store) *DeviceHandler {
 	return &DeviceHandler{Store: store}
 }
 
@@ -29,19 +29,19 @@ type verifyRequest struct {
 // ---------- JSON verify: POST /device/verify (application/json) → JSON (Java DTO shape) ----------
 
 type GrantStateJSON struct {
-	ID                string            `json:"id"`
-	Client            gnap.Client       `json:"client"`
-	RequestedAccess   []gnap.AccessItem `json:"requested_access"`
-	Status            gnap.GrantStatus  `json:"status"`
-	ContinuationToken string            `json:"continuation_token"`
-	CreatedAt         string            `json:"created_at"`
-	UpdatedAt         string            `json:"updated_at"`
-	ExpiresAt         string            `json:"expires_at"`
-	InteractionNonce  string            `json:"interaction_nonce"`
-	UserCode          string            `json:"user_code"`
-	Subject           string            `json:"subject"`
-	ApprovedAccess    []gnap.AccessItem `json:"approved_access"`
-	Locations         []string          `json:"locations"`
+	ID                string             `json:"id"`
+	Client            types.Client       `json:"client"`
+	RequestedAccess   []types.AccessItem `json:"requested_access"`
+	Status            types.GrantStatus  `json:"status"`
+	ContinuationToken string             `json:"continuation_token"`
+	CreatedAt         string             `json:"created_at"`
+	UpdatedAt         string             `json:"updated_at"`
+	ExpiresAt         string             `json:"expires_at"`
+	InteractionNonce  string             `json:"interaction_nonce"`
+	UserCode          string             `json:"user_code"`
+	Subject           string             `json:"subject"`
+	ApprovedAccess    []types.AccessItem `json:"approved_access"`
+	Locations         []string           `json:"locations"`
 }
 
 func (h *DeviceHandler) VerifyJSON(w http.ResponseWriter, r *http.Request) {
@@ -73,7 +73,7 @@ func (h *DeviceHandler) VerifyJSON(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, out)
 }
 
-func mapGrantStateToJavaJSON(g *gnap.GrantState) GrantStateJSON {
+func mapGrantStateToJavaJSON(g *types.GrantState) GrantStateJSON {
 	return GrantStateJSON{
 		ID:                g.ID,
 		Client:            g.Client,
@@ -506,13 +506,13 @@ var consentScreenTmpl = template.Must(template.New("consent").Parse(`
 </html>
 `))
 
-func consentScreen(w http.ResponseWriter, g *gnap.GrantState) {
+func consentScreen(w http.ResponseWriter, g *types.GrantState) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_ = consentScreenTmpl.Execute(w, struct {
 		GrantID   string
 		UserCode  string
-		Requested []gnap.AccessItem
+		Requested []types.AccessItem
 	}{
 		GrantID:   g.ID,
 		UserCode:  deref(g.UserCode),

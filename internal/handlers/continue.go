@@ -4,19 +4,19 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/TwigBush/gnap-go/internal/types"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/httpx"
 	"github.com/TwigBush/gnap-go/internal/token"
 )
 
 type ContinueHandler struct {
-	Store       gnap.Store
+	Store       types.Store
 	WaitSeconds int // how long the client should wait before polling /continue
 }
 
-func NewContinueHandler(store gnap.Store) *ContinueHandler {
+func NewContinueHandler(store types.Store) *ContinueHandler {
 	return &ContinueHandler{Store: store, WaitSeconds: 5}
 }
 
@@ -52,7 +52,7 @@ func (h *ContinueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch grant.Status {
-	case gnap.GrantStatusPending:
+	case types.GrantStatusPending:
 		// Still pending: instruct client to poll again
 		resp := map[string]any{
 			"continue": map[string]any{
@@ -64,7 +64,7 @@ func (h *ContinueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, resp)
 		return
 
-	case gnap.GrantStatusApproved:
+	case types.GrantStatusApproved:
 		// Issue the final access token. Bind to client key if your IssueToken supports it.
 		issuer := baseURL(r)
 		tok, err := token.IssueToken(grant, token.IssueConfig{
@@ -87,11 +87,11 @@ func (h *ContinueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusOK, resp)
 		return
 
-	case gnap.GrantStatusDenied:
+	case types.GrantStatusDenied:
 		httpx.WriteError(w, http.StatusForbidden, "grant denied by user")
 		return
 
-	case gnap.GrantStatusExpired:
+	case types.GrantStatusExpired:
 		httpx.WriteError(w, http.StatusBadRequest, "grant expired")
 		return
 
@@ -111,4 +111,4 @@ func baseURL(r *http.Request) string {
 
 // If you wired Config into the store, you can read it from there.
 // For now, return a sane default.
-func grantTokenTTL(_ context.Context, _ gnap.Store) int64 { return 300 }
+func grantTokenTTL(_ context.Context, _ types.Store) int64 { return 300 }

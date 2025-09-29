@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/TwigBush/gnap-go/internal/gnap"
+	"github.com/TwigBush/gnap-go/internal/types"
 	"github.com/google/uuid"
 )
 
@@ -15,7 +16,7 @@ type IssueConfig struct {
 	Audience        string // e.g. "mcp-resource-servers"
 }
 
-func IssueToken(grant *gnap.GrantState, cfg IssueConfig) (*Token, error) {
+func IssueToken(grant *types.GrantState, cfg IssueConfig) (*Token, error) {
 	if len(grant.ApprovedAccess) == 0 {
 		return nil, ErrNotApproved
 	}
@@ -45,6 +46,7 @@ func IssueToken(grant *gnap.GrantState, cfg IssueConfig) (*Token, error) {
 	enc := func(b []byte) string {
 		return base64.RawURLEncoding.EncodeToString(b)
 	}
+
 	jwt := enc(hb) + "." + enc(pb) + ".dev-signature"
 
 	t := &Token{

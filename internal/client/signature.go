@@ -8,16 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/TwigBush/gnap-go/internal/gnap"
+	"github.com/TwigBush/gnap-go/internal/types"
 )
 
 // SignatureGenerator handles HTTP signature generation for GNAP requests
 type SignatureGenerator struct {
-	privateKey gnap.JWK
+	privateKey types.JWK
 }
 
 // NewSignatureGenerator creates a new signature generator with the provided private key
-func NewSignatureGenerator(privateKey gnap.JWK) *SignatureGenerator {
+func NewSignatureGenerator(privateKey types.JWK) *SignatureGenerator {
 	return &SignatureGenerator{
 		privateKey: privateKey,
 	}
