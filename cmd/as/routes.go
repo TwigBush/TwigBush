@@ -9,6 +9,7 @@ import (
 	"github.com/TwigBush/gnap-go/internal/handlers"
 	"github.com/TwigBush/gnap-go/internal/types"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 )
 
 func defaultDataDir() string {
@@ -26,8 +27,16 @@ func defaultDataDir() string {
 }
 
 func registerRoutes(r chi.Router) {
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3001", "*"},
+		AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by any of major browsers
+	}))
+
 	cfg := types.Config{GrantTTLSeconds: 120}
-	
+
 	var store types.Store
 	switch os.Getenv("TWIGBUSH_STORE") {
 	case "fs":
@@ -38,7 +47,12 @@ func registerRoutes(r chi.Router) {
 		}
 		store = fsStore
 	default:
-		store = gnap.NewMemoryStore(cfg)
+		dir := defaultDataDir()
+		fsStore, err := gnap.NewFileStore(dir, cfg)
+		if err != nil {
+			panic(err)
+		}
+		store = fsStore
 	}
 
 	grant := handlers.NewGrantHandler(store)
@@ -50,6 +64,7 @@ func registerRoutes(r chi.Router) {
 
 	// GNAP endpoints
 	r.Post("/grants", grant.ServeHTTP)
+
 	r.Post("/continue/{grantId}", cont.ServeHTTP)
 	r.Post("/introspect", handlers.Introspect)
 	r.Get("/.well-known/jwks.json", handlers.JWKS)

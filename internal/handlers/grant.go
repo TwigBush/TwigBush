@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/TwigBush/gnap-go/internal/httpx"
@@ -19,6 +20,7 @@ func NewGrantHandler(store types.Store) *GrantHandler {
 }
 
 func (h *GrantHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Grant called")
 	// TODO: enforce proof (httpsig/jwsd/dpop/mtls) when implemented
 	if err := sign.VerifyRequestProof(r); err != nil {
 		httpx.WriteError(w, http.StatusUnauthorized, "invalid proof")
@@ -30,7 +32,8 @@ func (h *GrantHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, http.StatusBadRequest, "invalid JSON")
 		return
 	}
-	if req.Client.Key.Proof == "" || req.Client.Key.JWK.Kty == "" || len(req.Access) == 0 {
+
+	if req.Client.Key.Proof == "" || req.Client.Key.JWK.Kty == "" || len(req.AccessToken) == 0 {
 		httpx.WriteError(w, http.StatusBadRequest, "missing client.key or access")
 		return
 	}
