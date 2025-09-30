@@ -256,17 +256,6 @@ type Store interface {
 	MarkCodeVerified(ctx context.Context, id string) error
 }
 
-type Claims struct {
-	Issuer   string      `json:"iss"`
-	Subject  string      `json:"sub"`
-	Audience string      `json:"aud"`
-	Exp      int64       `json:"exp"`
-	Iat      int64       `json:"iat"`
-	Jti      string      `json:"jti"`
-	Access   []string    `json:"access"`
-	Key      interface{} `json:"key"`
-}
-
 type KeyPair struct {
 	PrivateKey JWK
 	PublicKey  JWK

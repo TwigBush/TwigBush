@@ -5,8 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/TwigBush/gnap-go/internal/di"
 	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/handlers"
+	"github.com/TwigBush/gnap-go/internal/mw"
 	"github.com/TwigBush/gnap-go/internal/types"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/cors"
@@ -36,7 +38,7 @@ func registerRoutes(r chi.Router) {
 	}))
 
 	cfg := types.Config{GrantTTLSeconds: 120}
-
+	authz := di.ProvideAuthorizer()
 	var store types.Store
 	switch os.Getenv("TWIGBUSH_STORE") {
 	case "fs":
@@ -55,6 +57,18 @@ func registerRoutes(r chi.Router) {
 		store = fsStore
 	}
 
+	r.Use(mw.Trace()) // from earlier
+	r.Use(mw.Logger(mw.LogOpts{
+		PollSkipEvery: 4, // log every 4th /continue call
+	}))
+
+	//r.Use(mw.RequestID)
+	//r.Use(mw.Logger(mw.LogOptions{
+	//	// default no body sampling
+	//	SampleBodies: os.Getenv("LOG_SAMPLE_BODIES") == "1",
+	//	MaxBodyBytes: 2048,
+	//}))
+
 	grant := handlers.NewGrantHandler(store)
 	cont := handlers.NewContinueHandler(store)
 	device := handlers.NewDeviceHandler(store)
@@ -66,7 +80,8 @@ func registerRoutes(r chi.Router) {
 	r.Post("/grants", grant.ServeHTTP)
 
 	r.Post("/continue/{grantId}", cont.ServeHTTP)
-	r.Post("/introspect", handlers.Introspect)
+
+	r.Post("/introspect", handlers.Introspect(authz))
 	r.Get("/.well-known/jwks.json", handlers.JWKS)
 	r.Post("/device/verify/json", device.VerifyJSON)
 	r.Post("/device/verify", device.VerifyForm)
