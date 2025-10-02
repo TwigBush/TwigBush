@@ -7,6 +7,27 @@ This project is not production-ready. It is published to encourage feedback, exp
 
 ---
 
+## Join the community on Discord
+
+Have questions, want to shape the roadmap, or need help integrating TwigBush? Join our Discord and say hello.
+
+[![Join our Discord](https://img.shields.io/badge/Discord-Join-5865F2?logo=discord&logoColor=white)](https://discord.gg/TGUCQBerDG)
+
+**What you’ll find**
+- Announcements and release notes
+- Help with setup, tokens, and agent delegation
+- Architecture chat, patterns, and examples
+- Show and tell from users building with TwigBush
+
+**How to get the most out of it**
+- Post your use case and stack when you join
+- Include version info and minimal repros for bugs
+- Share ideas and vote on priorities
+
+
+Invite link: https://discord.gg/TGUCQBerDG
+---
+
 ## Features
 
 * **GNAP Authorization Server**: Manages grant lifecycle and token issuance
