@@ -23,14 +23,22 @@
         .code-input{display:flex;gap:8px;align-items:center}
         .code-input input{width:160px;border-radius:10px;border:1px solid #1f2937;background:#0b1220;color:#e2e8f0;padding:10px 12px;font:600 16px/1 ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:1px}
         .small{font-size:12px;color:#94a3b8}
-
+        .wrap{max-width:1100px;margin:0 auto;padding:24px}
+        .card{padding:20px;border:1px solid #273244;border-radius:12px;background:#0b1220}
+        .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px}
+        textarea#grantJSON{width:100%;min-height:260px;background:#0b1220;color:#e2e8f0;border:1px solid #273244;border-radius:10px;padding:10px;font-family:ui-monospace,Menlo,monospace}
+        .row{display:flex;gap:8px;margin-top:8px}
+        .events{list-style:none;padding:0;margin:0;display:flex;flex-direction:column-reverse; gap:6px}
+        button{border-radius:10px;border:1px solid #374151;background:#111827;color:#e5e7eb;padding:8px 12px;cursor:pointer}
+        pre.out{background:#0b1220;border:1px solid #273244;border-radius:10px;padding:10px;color:#e5e7eb;max-height:280px;overflow:auto}
+        @media (max-width: 900px){ .grid{grid-template-columns:1fr} }
     </style>
 </head>
 <body>
 <div class="wrap">
     <div class="card">
         <h1>GNAP Grant Playground</h1>
-        <p>Request a grant, approve/deny via device code, and watch the lifecycle update in real time.</p>
+        <p>Request a grant, approve or deny via device code, and watch the lifecycle update in real time.</p>
 
         <div class="grid">
             <!-- LEFT: Controls -->
@@ -38,7 +46,7 @@
                 <h3>1. Create Grant Request</h3>
                 <textarea id="grantJSON" rows="14" spellcheck="false"></textarea>
                 <div class="row">
-                    <button id="btnGrant">POST /grant</button>
+                    <button id="btnGrant">POST /grants</button>
                 </div>
 
                 <h3 style="margin-top:16px;">2. Input Device Code (user present)</h3>
@@ -47,7 +55,10 @@
                         <div>Issued code</div>
                         <div id="issuedCode" class="mono">—</div>
                         <div>Device page</div>
-                        <div><a href="/device" target="_blank">Open /device</a> <span class="small">(manual entry)</span></div>
+                        <div>
+                            <a id="deviceLink" href="#" target="_blank" rel="noopener">Open /device</a>
+                            <span class="small">(manual entry)</span>
+                        </div>
                     </div>
                     <div class="small" style="margin-top:8px">Try it here (simulated):</div>
                     <div class="code-input" style="margin-top:6px">
@@ -87,6 +98,16 @@
     </div>
 </div>
 
+<!-- Config shim: allow ?as=...&ui=... override or window.__AS_BASE__ / __PLAYGROUND_BASE__ -->
+<script>
+    (function() {
+        const qs = new URLSearchParams(location.search);
+        window.AS_BASE = qs.get('as') || window.__AS_BASE__ || localStorage.getItem('AS_BASE') || 'http://localhost:8089';
+        window.PLAYGROUND_BASE = qs.get('ui') || window.__PLAYGROUND_BASE__ || localStorage.getItem('PLAYGROUND_BASE') || '';
+        if (qs.get('as')) localStorage.setItem('AS_BASE', window.AS_BASE);
+        if (qs.get('ui')) localStorage.setItem('PLAYGROUND_BASE', window.PLAYGROUND_BASE);
+    })();
+</script>
 <script src="app.js"></script>
 </body>
 </html>

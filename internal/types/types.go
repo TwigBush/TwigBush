@@ -99,6 +99,7 @@ type AccessItem struct {
 
 type GrantRequest struct {
 	AccessToken AccessTokenRequest `json:"access_token"`
+	Access      []AccessItem       `json:"access"` // todo: addresss this hierarch before merge
 	Client      Client             `json:"client"`
 	Interact    *Interact          `json:"interact,omitempty"`
 	TokenFormat string             `json:"token_format,omitempty"`

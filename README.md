@@ -53,7 +53,7 @@ The AS listens on `:8085` by default.
 ### Run the GNAP Playground
 
 ```bash
-go run ./cmd/demo
+go run ./cmd/playground
 ```
 
 The demo listens on `http://localhost:8089/playground` by default.
@@ -85,6 +85,7 @@ This example validates GNAP proof-of-possession tokens against the AS.
 * [ ] Policy adapters (OpenFGA/Zanzibar)
 * [ ] CLI tooling for administration and debugging
 * [ ] Helm charts and container images
+* [ ] What else would you like to see?
 
 See [Issues](https://github.com/TwigBush/TwigBush/issues) for active work.
 

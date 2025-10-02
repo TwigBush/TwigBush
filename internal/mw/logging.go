@@ -14,6 +14,8 @@ type LogOpts struct {
 	SampleBodies  bool
 	MaxBodyBytes  int
 	PollSkipEvery int // e.g., 4 logs only every 4th call on polling endpoints
+	SkipPaths     []string
+	RedactHeaders []string
 }
 
 func isPreflight(r *http.Request) bool {
