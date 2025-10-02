@@ -3,6 +3,7 @@ package token
 import (
 	"encoding/base64"
 	"encoding/json"
+	"log"
 	"time"
 
 	"github.com/TwigBush/gnap-go/internal/gnap"
@@ -16,13 +17,12 @@ type IssueConfig struct {
 	Audience        string // e.g. "mcp-resource-servers"
 }
 
-func IssueToken(grant *types.GrantState, cfg IssueConfig) (*Token, error) {
+func IssueToken(grant *types.GrantState, cfg IssueConfig) ([]*Token, error) {
 	if len(grant.ApprovedAccess) == 0 {
 		return nil, ErrNotApproved
 	}
 
 	now := time.Now().UTC()
-	expiresIn := int(cfg.TokenTTLSeconds)
 	iat := now.Unix()
 	exp := now.Add(time.Duration(cfg.TokenTTLSeconds) * time.Second).Unix()
 	jti := uuid.NewString()
@@ -49,15 +49,21 @@ func IssueToken(grant *types.GrantState, cfg IssueConfig) (*Token, error) {
 
 	jwt := enc(hb) + "." + enc(pb) + ".dev-signature"
 
-	t := &Token{
-		Value:     jwt,
-		Format:    "jwt",
-		Key:       grant.Client.Key,
-		Access:    grant.ApprovedAccess,
-		ExpiresIn: expiresIn,
-		TokenID:   jti,
+	// interate through approved access to mint tokens per resource
+
+	var tokens []*Token
+	for _, g := range grant.ApprovedAccess {
+		log.Printf("grant %v", g)
+
+		t := &Token{
+			// todo - address issueing a
+			Value:  "some-jwt-specific-token-value-" + string(jwt[0:10]),
+			Access: g.Access,
+		}
+		tokens = append(tokens, t)
 	}
-	return t, nil
+
+	return tokens, nil
 }
 
 var ErrNotApproved = gnap.Err("grant not approved")
