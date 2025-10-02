@@ -2,6 +2,8 @@ package gnap
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -88,6 +90,12 @@ func (fileStore *FileStore) listGrantFiles() ([]string, error) {
 	return out, nil
 }
 
+func randHex(n int) string {
+	b := make([]byte, n)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
 // ---------- interface implementation ----------
 
 func (fileStore *FileStore) CreateGrant(ctx context.Context, req types.GrantRequest) (*types.GrantState, error) {
@@ -98,11 +106,14 @@ func (fileStore *FileStore) CreateGrant(ctx context.Context, req types.GrantRequ
 
 	// Collect locations as JSON, same as memory store
 	var locations []string
-	for _, a := range req.Access {
-		if len(a.Locations) > 0 {
-			locations = append(locations, a.Locations...)
+	for _, accessToken := range req.AccessToken {
+		for _, accessItem := range accessToken.Access {
+			if len(accessItem.Locations) > 0 {
+				locations = append(locations, accessItem.Locations...)
+			}
 		}
 	}
+
 	var locRaw json.RawMessage
 	if len(locations) > 0 {
 		locRaw, _ = json.Marshal(locations)
@@ -114,7 +125,7 @@ func (fileStore *FileStore) CreateGrant(ctx context.Context, req types.GrantRequ
 		ID:                uuid.NewString(),
 		Status:            types.GrantStatusPending,
 		Client:            req.Client,
-		RequestedAccess:   req.Access,
+		RequestedAccess:   req.AccessToken,
 		ContinuationToken: continueToken,
 		TokenFormat:       req.TokenFormat,
 		CreatedAt:         now,
@@ -200,7 +211,7 @@ func (fileStore *FileStore) FindGrantByUserCodePending(ctx context.Context, code
 	return nil, false
 }
 
-func (fileStore *FileStore) ApproveGrant(ctx context.Context, id string, approved []types.AccessItem, subject string) (*types.GrantState, error) {
+func (fileStore *FileStore) ApproveGrant(ctx context.Context, id string, approved types.AccessTokenRequest, subject string) (*types.GrantState, error) {
 	fileStore.mu.Lock()
 	defer fileStore.mu.Unlock()
 

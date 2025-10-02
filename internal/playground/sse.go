@@ -47,7 +47,11 @@ func (h *SSEHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	flusher, _ := w.(http.Flusher)
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "streaming not supported", http.StatusInternalServerError)
+		return
+	}
 	enc := json.NewEncoder(w)
 	w.Write([]byte("event: ping\ndata: {}\n\n"))
 	flusher.Flush()

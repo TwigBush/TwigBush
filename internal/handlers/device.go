@@ -29,19 +29,19 @@ type verifyRequest struct {
 // ---------- JSON verify: POST /device/verify (application/json) → JSON (Java DTO shape) ----------
 
 type GrantStateJSON struct {
-	ID                string             `json:"id"`
-	Client            types.Client       `json:"client"`
-	RequestedAccess   []types.AccessItem `json:"requested_access"`
-	Status            types.GrantStatus  `json:"status"`
-	ContinuationToken string             `json:"continuation_token"`
-	CreatedAt         string             `json:"created_at"`
-	UpdatedAt         string             `json:"updated_at"`
-	ExpiresAt         string             `json:"expires_at"`
-	InteractionNonce  string             `json:"interaction_nonce"`
-	UserCode          string             `json:"user_code"`
-	Subject           string             `json:"subject"`
-	ApprovedAccess    []types.AccessItem `json:"approved_access"`
-	Locations         []string           `json:"locations"`
+	ID                string                   `json:"id"`
+	Client            types.Client             `json:"client"`
+	RequestedAccess   types.AccessTokenRequest `json:"requested_access"`
+	Status            types.GrantStatus        `json:"status"`
+	ContinuationToken string                   `json:"continuation_token"`
+	CreatedAt         string                   `json:"created_at"`
+	UpdatedAt         string                   `json:"updated_at"`
+	ExpiresAt         string                   `json:"expires_at"`
+	InteractionNonce  string                   `json:"interaction_nonce"`
+	UserCode          string                   `json:"user_code"`
+	Subject           string                   `json:"subject"`
+	ApprovedAccess    types.AccessTokenRequest `json:"approved_access"`
+	Locations         []string                 `json:"locations"`
 }
 
 func (h *DeviceHandler) VerifyJSON(w http.ResponseWriter, r *http.Request) {
@@ -133,7 +133,7 @@ func (h *DeviceHandler) ConsentForm(w http.ResponseWriter, r *http.Request) {
 	switch decision {
 	case "approve":
 		// Approve with requested_access and a subject "user:device"
-		_, err := h.Store.ApproveGrant(r.Context(), grantID, g.RequestedAccess, "user:device")
+		_, err := h.Store.ApproveGrant(r.Context(), grantID, g.ApprovedAccess, "user:device")
 		if err != nil {
 			deviceError(w, httpx.SafeErrMsg(err))
 			return
@@ -447,9 +447,12 @@ var consentScreenTmpl = template.Must(template.New("consent").Parse(`
   .wrap{max-width:720px;margin:6vh auto;padding:24px}
   .card{ background:rgba(17,24,39,.75); backdrop-filter:blur(8px); border:1px solid #1f2937; border-radius:16px; padding:28px; box-shadow:0 10px 30px rgba(0,0,0,.35) }
   h1{margin:0 0 10px;font-size:22px;letter-spacing:.2px}
+  h2{margin:18px 0 8px;font-size:16px;color:#cbd5e1}
   p{margin:0 0 18px;color:var(--muted);line-height:1.6}
   .list{margin:12px 0 18px; padding:0; list-style:none; display:grid; gap:12px}
-  .item{ border:1px solid #273244; border-radius:12px; padding:14px 16px; background:#0b1220; }
+  .token-section{margin-bottom:24px; border:1px solid #1f2937; border-radius:12px; padding:16px; background:rgba(15,23,42,.5)}
+  .token-label{font-weight:600; color:#e2e8f0; margin-bottom:12px}
+  .item{ border:1px solid #273244; border-radius:12px; padding:14px 16px; background:#0b1220; margin-bottom:8px }
   .kv{display:flex; gap:8px; flex-wrap:wrap; font-size:14px}
   .kv b{color:#cbd5e1; min-width:110px}
   .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px}
@@ -468,29 +471,44 @@ var consentScreenTmpl = template.Must(template.New("consent").Parse(`
       <p>Device <strong>{{ .UserCode }}</strong> is requesting access. Review and approve or deny.</p>
 
       {{ if .Requested }}
-      <ul class="list">
-        {{ range .Requested }}
-        <li class="item">
-          <div class="kv"><b>Type</b><span>{{ .Type }}</span></div>
-          {{ if .ResourceID }}<div class="kv"><b>Resource</b><span>{{ .ResourceID }}</span></div>{{ end }}
-          {{ if .Locations }}
-            <div class="kv"><b>Locations</b>
-              <span>
-                {{ range $i, $loc := .Locations }}{{ if $i }}, {{ end }}{{ $loc }}{{ end }}
-              </span>
-            </div>
-          {{ end }}
-          {{ if .Actions }}
-            <div class="kv"><b>Actions</b></div>
-            <div class="chips">{{ range .Actions }}<span class="chip">{{ . }}</span>{{ end }}</div>
-          {{ end }}
-          {{ if .Constraints }}
-            <div class="kv"><b>Constraints</b></div>
-            <div class="chips">{{ range $k, $v := .Constraints }}<span class="chip">{{ $k }}={{ $v }}</span>{{ end }}</div>
-          {{ end }}
-        </li>
+        {{ range $tokenIndex, $token := .Requested }}
+          <div class="token-section">
+            {{ if $token.Label }}
+              <div class="token-label">Token: {{ $token.Label }}</div>
+            {{ end }}
+            {{ if $token.Flags }}
+              <div class="kv"><b>Flags</b></div>
+              <div class="chips">{{ range $token.Flags }}<span class="chip">{{ . }}</span>{{ end }}</div>
+            {{ end }}
+            
+            <ul class="list">
+              {{ range $token.Access }}
+              <li class="item">
+                <div class="kv"><b>Type</b><span>{{ .Type }}</span></div>
+                {{ if .Identifier }}<div class="kv"><b>Identifier</b><span>{{ .Identifier }}</span></div>{{ end }}
+                {{ if .Locations }}
+                  <div class="kv"><b>Locations</b>
+                    <span>
+                      {{ range $i, $loc := .Locations }}{{ if $i }}, {{ end }}{{ $loc }}{{ end }}
+                    </span>
+                  </div>
+                {{ end }}
+                {{ if .Datatypes }}
+                  <div class="kv"><b>Datatypes</b></div>
+                  <div class="chips">{{ range .Datatypes }}<span class="chip">{{ . }}</span>{{ end }}</div>
+                {{ end }}
+                {{ if .Actions }}
+                  <div class="kv"><b>Actions</b></div>
+                  <div class="chips">{{ range .Actions }}<span class="chip">{{ . }}</span>{{ end }}</div>
+                {{ end }}
+                {{ if .Constraints }}
+                  <div class="kv"><b>Constraints</b><span>{{ printf "%.100s" .Constraints }}{{ if gt (len .Constraints) 100 }}...{{ end }}</span></div>
+                {{ end }}
+              </li>
+              {{ end }}
+            </ul>
+          </div>
         {{ end }}
-      </ul>
       {{ end }}
 
       <form method="post" action="/device/consent" class="actions">
@@ -512,7 +530,7 @@ func consentScreen(w http.ResponseWriter, g *types.GrantState) {
 	_ = consentScreenTmpl.Execute(w, struct {
 		GrantID   string
 		UserCode  string
-		Requested []types.AccessItem
+		Requested types.AccessTokenRequest
 	}{
 		GrantID:   g.ID,
 		UserCode:  deref(g.UserCode),

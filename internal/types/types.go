@@ -39,41 +39,72 @@ type GrantedAccess struct {
 }
 
 type AccessConstraint map[string]string
-type AccessItem struct {
-	Type        string           `json:"type"`
-	ResourceID  string           `json:"resource_id,omitempty"`
-	Actions     []string         `json:"actions,omitempty"`
-	Constraints AccessConstraint `json:"constraints,omitempty"`
-	Locations   []string         `json:"locations,omitempty"`
-}
 
 type Interact struct {
 	Start []string `json:"start,omitempty"`
 }
 
+type AccessToken struct {
+	Label  string       `json:"label,omitempty"`
+	Access []AccessItem `json:"access"`
+	Flags  []string     `json:"flags,omitempty"`
+}
+
+// AccessTokenRequest can be either a single AccessToken or an array of AccessTokens
+type AccessTokenRequest []AccessToken
+
+// UnmarshalJSON Custom unmarshaling to handle both single object and array formats
+// todo - revist this for single vs multiple access token issuance
+func (a *AccessTokenRequest) UnmarshalJSON(data []byte) error {
+	// Try to unmarshal as array first
+	var tokens []AccessToken
+	if err := json.Unmarshal(data, &tokens); err == nil {
+		*a = tokens
+		return nil
+	}
+
+	// If that fails, try as single object
+	var token AccessToken
+	if err := json.Unmarshal(data, &token); err != nil {
+		return err
+	}
+
+	*a = []AccessToken{token}
+	return nil
+}
+
+type AccessItem struct {
+	Type        string          `json:"type"`
+	Actions     []string        `json:"actions,omitempty"`
+	Locations   []string        `json:"locations,omitempty"`
+	Datatypes   []string        `json:"datatypes,omitempty"`
+	Identifier  string          `json:"identifier,omitempty"`
+	Constraints json.RawMessage `json:"constraints,omitempty"`
+}
+
 type GrantRequest struct {
-	Client      Client       `json:"client"`
-	Access      []AccessItem `json:"access"`
-	Interact    *Interact    `json:"interact,omitempty"`
-	TokenFormat string       `json:"token_format,omitempty"` // "jwt"|"opaque"
+	AccessToken AccessTokenRequest `json:"access_token"`
+	Client      Client             `json:"client"`
+	Interact    *Interact          `json:"interact,omitempty"`
+	TokenFormat string             `json:"token_format,omitempty"`
 }
 
 type GrantState struct {
-	ID                    string          `json:"id"`
-	Status                GrantStatus     `json:"status"`
-	Client                Client          `json:"client"`
-	RequestedAccess       []AccessItem    `json:"requested_access"`
-	ApprovedAccess        []AccessItem    `json:"approved_access,omitempty"` // set when approved
-	Subject               *string         `json:"subject,omitempty"`         // e.g. sub id
-	ContinuationToken     string          `json:"continuation_token"`
-	TokenFormat           string          `json:"token_format"`
-	CreatedAt             time.Time       `json:"created_at"`
-	UpdatedAt             time.Time       `json:"updated_at"`
-	ExpiresAt             time.Time       `json:"expires_at"`
-	Locations             json.RawMessage `json:"locations,omitempty"`
-	UserCode              *string         `json:"user_code,omitempty"`
-	ApprovedAccessGranted []GrantedAccess `json:"approved_access_granted,omitempty"`
-	CodeVerified          bool            `json:"code_verified"`
+	ID                    string             `json:"id"`
+	Status                GrantStatus        `json:"status"`
+	Client                Client             `json:"client"`
+	RequestedAccess       AccessTokenRequest `json:"requested_access"`
+	ApprovedAccess        AccessTokenRequest `json:"approved_access,omitempty"` // set when approved
+	Subject               *string            `json:"subject,omitempty"`         // e.g. sub id
+	ContinuationToken     string             `json:"continuation_token"`
+	TokenFormat           string             `json:"token_format"`
+	CreatedAt             time.Time          `json:"created_at"`
+	UpdatedAt             time.Time          `json:"updated_at"`
+	ExpiresAt             time.Time          `json:"expires_at"`
+	Locations             json.RawMessage    `json:"locations,omitempty"`
+	UserCode              *string            `json:"user_code,omitempty"`
+	ApprovedAccessGranted []GrantedAccess    `json:"approved_access_granted,omitempty"`
+	CodeVerified          bool               `json:"code_verified"`
 }
 
 type Config struct {
@@ -91,21 +122,10 @@ type Store interface {
 	GetGrant(ctx context.Context, id string) (*GrantState, bool)
 	FindGrantByUserCodePending(ctx context.Context, code string) (*GrantState, bool)
 
-	ApproveGrant(ctx context.Context, id string, approved []AccessItem, subject string) (*GrantState, error)
+	ApproveGrant(ctx context.Context, id string, approved AccessTokenRequest, subject string) (*GrantState, error)
 	DenyGrant(ctx context.Context, id string) (*GrantState, error)
 
 	MarkCodeVerified(ctx context.Context, id string) error
-}
-
-type Claims struct {
-	Issuer   string      `json:"iss"`
-	Subject  string      `json:"sub"`
-	Audience string      `json:"aud"`
-	Exp      int64       `json:"exp"`
-	Iat      int64       `json:"iat"`
-	Jti      string      `json:"jti"`
-	Access   []string    `json:"access"`
-	Key      interface{} `json:"key"`
 }
 
 type KeyPair struct {

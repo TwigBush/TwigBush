@@ -77,6 +77,7 @@ func (h *ContinueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, http.StatusBadRequest, err.Error())
 			return
 		}
+
 		resp := map[string]any{
 			"access_token": tok,
 			"instance_id":  grant.ID,
