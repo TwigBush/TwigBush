@@ -56,8 +56,8 @@ func IssueToken(grant *types.GrantState, cfg IssueConfig) ([]*Token, error) {
 		log.Printf("grant %v", g)
 
 		t := &Token{
-			// todo - address issueing a
-			Value:  "some-jwt-specific-token-value-" + string(jwt[0:10]),
+			// todo - address issuing a token
+			Value:  "some-specific-token-value-" + string(jwt[0:10]),
 			Access: g.Access,
 		}
 		tokens = append(tokens, t)

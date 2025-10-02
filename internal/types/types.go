@@ -3,7 +3,6 @@ package types
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"time"
 )
 
@@ -41,24 +40,9 @@ type GrantedAccess struct {
 
 type AccessConstraint map[string]string
 
-//type AccessItem struct {
-//	Type        string          `json:"type"`
-//	ResourceID  string          `json:"resource_id,omitempty"`
-//	Actions     []string        `json:"actions,omitempty"`
-//	Constraints json.RawMessage `json:"constraints,omitempty"`
-//	Locations   []string        `json:"locations,omitempty"`
-//}
-
 type Interact struct {
 	Start []string `json:"start,omitempty"`
 }
-
-//type GrantRequest struct {
-//	Client      Client       `json:"client"`
-//	Access      []AccessItem `json:"access"`
-//	Interact    *Interact    `json:"interact,omitempty"`
-//	TokenFormat string       `json:"token_format,omitempty"` // "jwt"|"opaque"
-//}
 
 type AccessToken struct {
 	Label  string       `json:"label,omitempty"`
@@ -69,7 +53,8 @@ type AccessToken struct {
 // AccessTokenRequest can be either a single AccessToken or an array of AccessTokens
 type AccessTokenRequest []AccessToken
 
-// Custom unmarshaling to handle both single object and array formats
+// UnmarshalJSON Custom unmarshaling to handle both single object and array formats
+// todo - revist this for single vs multiple access token issuance
 func (a *AccessTokenRequest) UnmarshalJSON(data []byte) error {
 	// Try to unmarshal as array first
 	var tokens []AccessToken
@@ -120,119 +105,6 @@ type GrantState struct {
 	UserCode              *string            `json:"user_code,omitempty"`
 	ApprovedAccessGranted []GrantedAccess    `json:"approved_access_granted,omitempty"`
 	CodeVerified          bool               `json:"code_verified"`
-}
-
-type LineItem struct {
-	SKU string `json:"sku"`
-	Qty int    `json:"qty"`
-}
-
-type Schedule struct {
-	Kind string `json:"kind"`
-}
-
-type StylesByMeal struct {
-	Breakfast []string `json:"breakfast"`
-	Lunch     []string `json:"lunch"`
-	Dinner    []string `json:"dinner"`
-}
-
-type FinanceConstraints struct {
-	MaxAmount    float64  `json:"max_amount,omitempty"`
-	Currency     string   `json:"currency,omitempty"`
-	AccountTypes []string `json:"account_types,omitempty"`
-}
-
-type ShoppingConstraints struct {
-	Profile        string       `json:"profile,omitempty"`
-	AccountID      string       `json:"account_id,omitempty"`
-	MerchantID     string       `json:"merchant_id,omitempty"`
-	LineItems      []LineItem   `json:"line_items,omitempty"`
-	Currency       string       `json:"currency,omitempty"`
-	AmountCents    int          `json:"amount_cents,omitempty"`
-	Servings       int          `json:"servings,omitempty"`
-	PlanID         string       `json:"plan_id,omitempty"`
-	RecipeSpecHash string       `json:"recipe_spec_hash,omitempty"`
-	BasketHash     string       `json:"basket_hash,omitempty"`
-	QuoteHash      string       `json:"quote_hash,omitempty"`
-	QuoteExpiresAt string       `json:"quote_expires_at,omitempty"`
-	BudgetCents    int          `json:"budget_cents,omitempty"`
-	MealsPerDay    int          `json:"meals_per_day,omitempty"`
-	StylesByMeal   StylesByMeal `json:"styles_by_meal,omitempty"`
-	Domain         string       `json:"domain,omitempty"`
-	Schedule       Schedule     `json:"schedule,omitempty"`
-}
-
-// Helper methods to unmarshal constraints
-func (a *AccessItem) GetShoppingConstraints() (*ShoppingConstraints, error) {
-	if a.Constraints == nil {
-		return nil, nil
-	}
-	var constraints ShoppingConstraints
-	err := json.Unmarshal(a.Constraints, &constraints)
-	return &constraints, err
-}
-
-func (a *AccessItem) GetFinanceConstraints() (*FinanceConstraints, error) {
-	if a.Constraints == nil {
-		return nil, nil
-	}
-	var constraints FinanceConstraints
-	err := json.Unmarshal(a.Constraints, &constraints)
-	return &constraints, err
-}
-
-type Constraint interface {
-	Type() string
-	Validate() error
-}
-
-func (s ShoppingConstraints) Type() string { return "shopping" }
-
-func (s ShoppingConstraints) Validate() error {
-	if s.BudgetCents < 0 {
-		return fmt.Errorf("budget_cents cannot be negative")
-	}
-	if s.AmountCents < 0 {
-		return fmt.Errorf("amount_cents cannot be negative")
-	}
-	if s.AmountCents > s.BudgetCents && s.BudgetCents > 0 {
-		return fmt.Errorf("amount_cents (%d) cannot exceed budget_cents (%d)", s.AmountCents, s.BudgetCents)
-	}
-	if s.Servings < 0 {
-		return fmt.Errorf("servings cannot be negative")
-	}
-	if s.MealsPerDay < 0 {
-		return fmt.Errorf("meals_per_day cannot be negative")
-	}
-	for _, item := range s.LineItems {
-		if item.Qty < 0 {
-			return fmt.Errorf("line item %s quantity cannot be negative", item.SKU)
-		}
-		if item.SKU == "" {
-			return fmt.Errorf("line item SKU cannot be empty")
-		}
-	}
-	return nil
-}
-
-func (s ShoppingConstraints) IsQuoteExpired() bool {
-	if s.QuoteExpiresAt == "" {
-		return false
-	}
-	expiresAt, err := time.Parse(time.RFC3339, s.QuoteExpiresAt)
-	if err != nil {
-		return true // treat parse errors as expired
-	}
-	return time.Now().After(expiresAt)
-}
-
-func (s ShoppingConstraints) TotalItemsCount() int {
-	total := 0
-	for _, item := range s.LineItems {
-		total += item.Qty
-	}
-	return total
 }
 
 type Config struct {
