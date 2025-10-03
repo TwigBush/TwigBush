@@ -84,11 +84,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Authorization failed: %v", err)
 	}
-
-	fmt.Printf("Authorization successful! Token ID: %s\n", token.TokenID)
-	fmt.Printf("Token format: %s\n", token.Format)
-	fmt.Printf("Expires in: %d seconds\n", token.ExpiresIn)
-
+	
 	fmt.Println("\nMaking authenticated request...")
 	response, err := gnapClient.MakeRequestWithContext(
 		ctx,
