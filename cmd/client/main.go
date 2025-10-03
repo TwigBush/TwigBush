@@ -84,7 +84,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Authorization failed: %v", err)
 	}
-	
+
 	fmt.Println("\nMaking authenticated request...")
 	response, err := gnapClient.MakeRequestWithContext(
 		ctx,
