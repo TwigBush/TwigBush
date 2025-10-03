@@ -11,8 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Starts AS and sample RS as child processes.
-// Assumes you have ./cmd/as and ./cmd/rs packages in the repo.
+// Starts AS
 func cmdRun() *cobra.Command {
 	var port int
 	var db string
@@ -36,7 +35,7 @@ func cmdRun() *cobra.Command {
 			as.Stdout = os.Stdout
 			as.Stderr = os.Stderr
 
-			rs := exec.CommandContext(ctx, "go", "run", "./cmd/rs")
+			rs := exec.CommandContext(ctx, "go", "run", "./cmd/playground")
 			rs.Env = append(os.Environ(),
 				fmt.Sprintf("RS_PORT=%d", port+1),
 				fmt.Sprintf("AS_BASE_URL=%s", asBaseURL),
@@ -50,7 +49,7 @@ func cmdRun() *cobra.Command {
 				return err
 			}
 			time.Sleep(800 * time.Millisecond)
-			fmt.Println("Starting RS...")
+			fmt.Println("Starting Playground...")
 			if err := rs.Start(); err != nil {
 				return err
 			}

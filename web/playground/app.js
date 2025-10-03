@@ -128,7 +128,7 @@ const AS_BASE =
     new URLSearchParams(location.search).get("as") ||
     (typeof window !== "undefined" && window.__AS_BASE__) ||
     localStorage.getItem("AS_BASE") ||
-    "http://localhost:8089";
+    "http://localhost:8085";
 
 const PLAYGROUND_BASE =
     new URLSearchParams(location.search).get("ui") ||
