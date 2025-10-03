@@ -139,7 +139,7 @@ Out of scope:
 TwigBush follows an **open governance** model:
 
 * Decisions are made in public via GitHub issues and discussions
-* Maintainers are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md.md)
+* Maintainers are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md)
 * New maintainers are nominated and approved by existing maintainers through documented consensus
 * Community involvement from implementers, operators, and researchers is strongly encouraged
 
@@ -159,8 +159,8 @@ TwigBush aligns with CNCF Sandbox goals:
 TwigBush is at a **proof-of-concept stage**. Breaking changes should be expected.
 We welcome feedback, issue reports, and contributions.
 
-* See [CONTRIBUTING.md](CONTRIBUTING.md.md) for guidelines
-* Maintainers and contributors are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md.md)
+* See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
+* Maintainers and contributors are listed in [CONTRIBUTORS.md](CONTRIBUTORS.md)
 
 ---
 

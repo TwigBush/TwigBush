@@ -23,7 +23,7 @@ A complete list of code contributors is available via [GitHub’s contributors g
 
 ## How to Become a Contributor
 
-See our [CONTRIBUTING.md](../CONTRIBUTING.md.md) for details on how to:
+See our [CONTRIBUTING.md](CONTRIBUTING.md) for details on how to:
 
 * Report issues
 * Propose features
