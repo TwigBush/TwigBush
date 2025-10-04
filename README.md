@@ -77,7 +77,7 @@ The AS listens on `:8085` by default.
 go run ./cmd/playground
 ```
 
-The demo listens on `http://localhost:8089/playground` by default.
+The playground listens on `http://localhost:8088/playground` by default.
 
 ### Run the Resource Server Command Line Client Example
 

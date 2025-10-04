@@ -44,12 +44,12 @@ func cmdRun() *cobra.Command {
 			rs.Stdout = os.Stdout
 			rs.Stderr = os.Stderr
 
-			fmt.Println("Starting AS...")
+			fmt.Println("Starting AS on port", port, "...")
 			if err := as.Start(); err != nil {
 				return err
 			}
 			time.Sleep(800 * time.Millisecond)
-			fmt.Println("Starting Playground...")
+			fmt.Println("Starting Playground on port", port+3, "...")
 			if err := rs.Start(); err != nil {
 				return err
 			}
@@ -58,7 +58,7 @@ func cmdRun() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().IntVar(&port, "port", 8089, "AS port, RS uses port+1")
+	c.Flags().IntVar(&port, "port", 8085, "AS port, RS uses port+1")
 	c.Flags().StringVar(&db, "db", "file:dev.db?_busy_timeout=5000&_fk=1", "AS database DSN")
 	c.Flags().StringVar(&fga, "fga-endpoint", "", "OpenFGA endpoint URL")
 	c.Flags().BoolVar(&logJSON, "log-json", false, "log in JSON format")

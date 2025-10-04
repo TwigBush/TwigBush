@@ -29,8 +29,8 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVarP(&output, "output", "o", "json", "output format: json|yaml|table")
 	rootCmd.PersistentFlags().BoolVar(&showCurl, "show-curl", false, "print equivalent curl for networked commands")
-	rootCmd.PersistentFlags().StringVar(&asBaseURL, "as-base-url", "http://localhost:8089", "Authorization Server base URL")
-	rootCmd.PersistentFlags().StringVar(&rsBaseURL, "rs-base-url", "http://localhost:8089", "Resource Server base URL")
+	rootCmd.PersistentFlags().StringVar(&asBaseURL, "as-base-url", "http://localhost:8085", "Authorization Server base URL")
+	rootCmd.PersistentFlags().StringVar(&rsBaseURL, "rs-base-url", "http://localhost:8088", "Resource Server base URL")
 	rootCmd.PersistentFlags().StringVar(&cfgPath, "config", defaultCfg, "config file path")
 
 	// Wire top level groups

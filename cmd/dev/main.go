@@ -19,7 +19,7 @@ import (
 )
 
 func main() {
-	asAddr := flag.String("as", ":8089", "AS addr")
+	asAddr := flag.String("as", ":8085", "AS addr")
 	uiAddr := flag.String("ui", ":8088", "Playground addr")
 	storeKind := flag.String("store", "fs", "fs")
 	flag.Parse()

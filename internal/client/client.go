@@ -29,33 +29,6 @@ func NewGnapClient(config types.Configuration) *GnapClient {
 	}
 }
 
-func (c *GnapClient) Authorize(ctx context.Context, resources []types.AccessItem, interactive bool) (*token.Token, error) {
-	if !interactive {
-		return nil, fmt.Errorf("no valid token and non-interactive mode")
-	}
-
-	// Request grant
-	grant, err := c.auth.RequestGrant(resources)
-	if err != nil {
-		return nil, fmt.Errorf("failed to request grant: %w", err)
-	}
-
-	// Display user code if available
-	if grant.Interact.UserCode.Code != "" {
-		fmt.Printf("To authorize, visit: %s\n", grant.Interact.UserCode.URI)
-		fmt.Printf("Enter code: %s\n", grant.Interact.UserCode.Code)
-	}
-
-	// Poll for completion
-	token, err := c.auth.PollForToken(ctx, grant)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get token: %w", err)
-	}
-
-	// TODO: Store token for future use
-	return token, nil
-}
-
 // RequestOptions contains options for making authenticated requests
 type RequestOptions struct {
 	Method  string
@@ -99,11 +72,12 @@ func (c *GnapClient) MakeRequest(url string, token *token.Token, options *Reques
 	}
 
 	// Add signature if key-bound token
-	if token.Key.JWK.Kty != "" {
-		if err := c.signer.SignRequest(req, bodyBytes); err != nil {
-			return nil, fmt.Errorf("failed to sign request: %w", err)
-		}
-	}
+	// todo: (joshfischer) fix this
+	// if token...JWK.Kty != "" {
+	//	if err := c.signer.SignRequest(req, bodyBytes); err != nil {
+	//		return nil, fmt.Errorf("failed to sign request: %w", err)
+	//	}
+	//}
 
 	// Execute request
 	resp, err := c.client.Do(req)
@@ -168,11 +142,12 @@ func (c *GnapClient) MakeRequestWithContext(ctx context.Context, url string, tok
 	}
 
 	// Add signature if key-bound token
-	if token.Key.JWK.Kty != "" {
-		if err := c.signer.SignRequest(req, bodyBytes); err != nil {
-			return nil, fmt.Errorf("failed to sign request: %w", err)
-		}
-	}
+	// todo (joshfischer) fix this
+	//if token.Key.JWK.Kty != "" {
+	//	if err := c.signer.SignRequest(req, bodyBytes); err != nil {
+	//		return nil, fmt.Errorf("failed to sign request: %w", err)
+	//	}
+	//}
 
 	// Execute request
 	resp, err := c.client.Do(req)
