@@ -30,65 +30,6 @@ func NewAuthFlow(config types.Configuration) *AuthFlow {
 	}
 }
 
-// RequestGrant initiates a GNAP grant request
-func (a *AuthFlow) RequestGrant(resources []types.AccessItem) (*types.GrantResponse, error) {
-	// Prepare grant request
-	grantRequest := types.GrantRequest{
-		Client: types.Client{
-			Key: types.ClientKey{
-				Proof: string(a.config.ProofMethod.HTTPSig),
-				JWK:   a.config.KeyPair.PublicKey,
-			},
-		},
-		Access: resources,
-		Interact: &types.Interact{
-			Start: []string{"user_code"},
-		},
-	}
-
-	url := fmt.Sprintf("%s/grants", a.config.AsURL)
-
-	// Prepare request body
-	body, err := json.Marshal(grantRequest)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal grant request: %w", err)
-	}
-	fmt.Printf("%s", body)
-
-	// Create HTTP request
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-
-	// Add signature
-	if err := a.signer.SignRequest(req, body); err != nil {
-		return nil, fmt.Errorf("failed to sign request: %w", err)
-	}
-
-	// Execute request
-	resp, err := a.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("grant request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		var errResp map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&errResp)
-		return nil, fmt.Errorf("grant request failed with status %d: %v", resp.StatusCode, errResp)
-	}
-
-	var grantResponse types.GrantResponse
-	if err := json.NewDecoder(resp.Body).Decode(&grantResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode grant response: %w", err)
-	}
-
-	return &grantResponse, nil
-}
-
 // PollForToken polls for token approval
 func (a *AuthFlow) PollForToken(ctx context.Context, grant *types.GrantResponse) (*token.Token, error) {
 	if grant.Continue.URI == "" {
