@@ -31,7 +31,7 @@ Invite link: https://discord.gg/TGUCQBerDG
 ## Features
 
 * **GNAP Authorization Server**: Manages grant lifecycle and token issuance
-* **Proof-of-Possession Tokens**: DPoP, mTLS, detached JWS, and HTTP message signatures
+* **Proof-of-Possession Tokens**: mTLS, detached JWS, and HTTP message signatures
 * **Short-Lived, Key-Bound Tokens**: Configurable TTL, audience, and constraints
 * **Resource Server Toolkit**: RS discovery, introspection, and resource registration (per RFC 9767)
 * **Policy Integration**: Adapters for [OpenFGA](https://openfga.dev/) or other policy engines (Zanzibar-style graphs)
@@ -101,12 +101,7 @@ This example validates GNAP proof-of-possession tokens against the AS.
 
 ## Roadmap
 
-* [ ] Full DPoP support
-* [ ] Advanced RS–AS coordination (RFC 9767 resource registration & downstream tokens)
-* [ ] Policy adapters (OpenFGA/Zanzibar)
-* [ ] CLI tooling for administration and debugging
-* [ ] Helm charts and container images
-* [ ] What else would you like to see?
+See [Projects for roadmap items](https://github.com/TwigBush/TwigBush/projects?query=is%3Aopen)
 
 See [Issues](https://github.com/TwigBush/TwigBush/issues) for active work.
 

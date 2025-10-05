@@ -11,23 +11,20 @@ func cmdSignCurl() *cobra.Command {
 	var keyPath string
 	var method string
 	var url string
-	var dpop bool
 	var httpsig bool
 
 	c := &cobra.Command{
 		Use:   "curl",
-		Short: "Wrap a curl with DPoP or HTTP Message Signatures",
-		Example: "twigbush sign curl --dpop --key ~/.twigbush/keys/key-XYZ.jwk " +
+		Short: "Wrap a curl with HTTP Message Signatures",
+		Example: "twigbush sign curl --httpsig --key ~/.twigbush/keys/key-XYZ.jwk " +
 			"--method POST --url https://api.example/checkout -d @body.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !dpop && !httpsig {
-				return fmt.Errorf("choose one: --dpop or --httpsig")
+			if !httpsig {
+				return fmt.Errorf("choose one: --httpsig")
 			}
 			_ = keyPath // placeholder for future signer
 			headers := map[string]string{}
-			if dpop {
-				headers["DPoP"] = "<dpop-proof-placeholder>"
-			}
+
 			if httpsig {
 				headers["Signature"] = "sig1=:placeholder:;keyid=\"thumbprint\";alg=\"ed25519\""
 				headers["Signature-Input"] = "sig1=();created=0000000000"
@@ -41,7 +38,6 @@ func cmdSignCurl() *cobra.Command {
 	c.Flags().StringVar(&keyPath, "key", "", "path to private JWK")
 	c.Flags().StringVar(&method, "method", "GET", "HTTP method")
 	c.Flags().StringVar(&url, "url", "", "target URL")
-	c.Flags().BoolVar(&dpop, "dpop", false, "use DPoP header")
 	c.Flags().BoolVar(&httpsig, "httpsig", false, "use HTTP Message Signatures")
 	_ = c.MarkFlagRequired("url")
 	_ = c.MarkFlagRequired("key")

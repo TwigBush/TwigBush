@@ -31,7 +31,7 @@ type IntrospectResp struct {
 }
 
 func Introspect(w http.ResponseWriter, r *http.Request) {
-	// todo verify dpop
+
 	// 1) Extract token
 	var in introspectReq
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {

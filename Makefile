@@ -1,14 +1,7 @@
 SHELL := /bin/bash
 GO    ?= go
 
-# Ports and storage
-AS_ADDR ?= :8089
-UI_ADDR ?= :8088
-STORE   ?= fs
-
-
-.PHONY: all tidy deps fmt test build run clean ci \
-        build-twigbush
+.PHONY: all tidy deps fmt test build run clean ci
 
 # Default target
 all: build
@@ -36,5 +29,3 @@ clean:
 ci: tidy fmt test build
 	@echo "CI checks passed"
 
-build-twigbush:
-	$(GO) build -o bin/as ./cmd/as

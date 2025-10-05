@@ -138,7 +138,6 @@ type Proof string
 type ProofMethod struct {
 	HTTPSig Proof
 	MTLs    Proof
-	DPoP    Proof
 }
 
 type Configuration struct {
