@@ -45,6 +45,6 @@ func cmdInit() *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&fga, "fga-endpoint", "", "OpenFGA endpoint URL (optional)")
-	c.Flags().StringVar(&keyType, "key-type", "dpop", "default key type: dpop|httpsig|ed25519|p256")
+	c.Flags().StringVar(&keyType, "key-type", "jwk", "default key type: jwk")
 	return c
 }

@@ -38,7 +38,7 @@ func cmdKeysNew() *cobra.Command {
 			return nil
 		},
 	}
-	c.Flags().StringVar(&keyType, "type", "dpop", "dpop|httpsig|ed25519|p256")
+	c.Flags().StringVar(&keyType, "type", "jwk", "dpop|httpsig|ed25519|p256")
 	return c
 }
 

@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha256"
@@ -17,8 +16,10 @@ type jwk map[string]string
 func b64u(b []byte) string { return base64.RawURLEncoding.EncodeToString(b) }
 
 func generateKey(dir, keyType string) (path string, thumb string, err error) {
+	fmt.Printf("Generating %s key...\n", keyType)
+
 	switch keyType {
-	case "dpop", "p256":
+	case "jwk":
 		priv, x, y, err := genP256()
 		if err != nil {
 			return "", "", err
@@ -37,27 +38,6 @@ func generateKey(dir, keyType string) (path string, thumb string, err error) {
 			return "", "", err
 		}
 		return privPath, tp, nil
-
-	case "httpsig", "ed25519":
-		pub, priv, err := ed25519.GenerateKey(rand.Reader)
-		if err != nil {
-			return "", "", err
-		}
-		privJWK := jwk{
-			"kty": "OKP", "crv": "Ed25519", "x": b64u(pub), "d": b64u(priv.Seed()),
-		}
-		pubJWK := jwk{"kty": "OKP", "crv": "Ed25519", "x": b64u(pub)}
-		tp, _ := jwkThumbprint(pubJWK)
-		privPath := filepath.Join(dir, fmt.Sprintf("key-%s.jwk", tp))
-		pubPath := filepath.Join(dir, fmt.Sprintf("key-%s.pub.jwk", tp))
-		if err := writeJSONFile(privPath, privJWK, 0o600); err != nil {
-			return "", "", err
-		}
-		if err := writeJSONFile(pubPath, pubJWK, 0o644); err != nil {
-			return "", "", err
-		}
-		return privPath, tp, nil
-
 	default:
 		return "", "", fmt.Errorf("unknown key type: %s", keyType)
 	}
