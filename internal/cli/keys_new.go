@@ -1,89 +1,95 @@
 package cli
 
 import (
+	"crypto"
+	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha256"
+
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"path/filepath"
-)
 
-type jwk map[string]string
+	"github.com/lestrrat-go/jwx/v3/jwa"
+	"github.com/lestrrat-go/jwx/v3/jwk"
+)
 
 func b64u(b []byte) string { return base64.RawURLEncoding.EncodeToString(b) }
 
 func generateKey(dir, keyType string) (path string, thumb string, err error) {
-	fmt.Printf("Generating %s key...\n", keyType)
+	fmt.Printf("Generating ES384 key...\n")
 
-	switch keyType {
-	case "jwk":
-		priv, x, y, err := genP256()
-		if err != nil {
-			return "", "", err
-		}
-		privJWK := jwk{
-			"kty": "EC", "crv": "P-256", "x": b64u(x), "y": b64u(y), "d": b64u(priv),
-		}
-		pubJWK := jwk{"kty": "EC", "crv": "P-256", "x": b64u(x), "y": b64u(y)}
-		tp, _ := jwkThumbprint(pubJWK)
-		privPath := filepath.Join(dir, fmt.Sprintf("key-%s.jwk", tp))
-		pubPath := filepath.Join(dir, fmt.Sprintf("key-%s.pub.jwk", tp))
-		if err := writeJSONFile(privPath, privJWK, 0o600); err != nil {
-			return "", "", err
-		}
-		if err := writeJSONFile(pubPath, pubJWK, 0o644); err != nil {
-			return "", "", err
-		}
-		return privPath, tp, nil
-	default:
-		return "", "", fmt.Errorf("unknown key type: %s", keyType)
-	}
-}
-
-func genP256() (d []byte, x []byte, y []byte, err error) {
-	curve := elliptic.P256()
-	priv, xBig, yBig, err := elliptic.GenerateKey(curve, rand.Reader)
+	// Generate P-384 ECDSA key
+	privateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		return nil, nil, nil, err
+		return "", "", fmt.Errorf("failed to generate key: %w", err)
 	}
-	return priv, bigToBytes(xBig), bigToBytes(yBig), nil
-}
 
-func bigToBytes(b *big.Int) []byte {
-	out := make([]byte, 32)
-	copy(out[32-len(b.Bytes()):], b.Bytes())
-	return out
-}
-
-// RFC 7638 thumbprint for EC: {"crv","kty","x","y"}; for OKP: {"crv","kty","x"}
-func jwkThumbprint(pub jwk) (string, error) {
-	var canon []byte
-	var err error
-	if pub["kty"] == "EC" {
-		canon, err = json.Marshal(map[string]string{
-			"crv": pub["crv"], "kty": "EC", "x": pub["x"], "y": pub["y"],
-		})
-	} else {
-		canon, err = json.Marshal(map[string]string{
-			"crv": pub["crv"], "kty": "OKP", "x": pub["x"],
-		})
-	}
+	// Import into JWK
+	privKey, err := jwk.Import(privateKey)
 	if err != nil {
-		return "", err
+		return "", "", fmt.Errorf("failed to import private key: %w", err)
 	}
-	sum := sha256.Sum256(canon)
-	return b64u(sum[:]), nil
+
+	// Set algorithm to ES384 (P-384 with SHA-384)
+	if err := privKey.Set(jwk.AlgorithmKey, jwa.ES384()); err != nil {
+		return "", "", fmt.Errorf("failed to set algorithm: %w", err)
+	}
+
+	// Get public key
+	pubKey, err := jwk.PublicKeyOf(privKey)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get public key: %w", err)
+	}
+
+	// Calculate thumbprint
+	tp, err := jwkThumbprint(pubKey)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to calculate thumbprint: %w", err)
+	}
+
+	// Set key ID based on thumbprint
+	if err := privKey.Set(jwk.KeyIDKey, tp); err != nil {
+		return "", "", fmt.Errorf("failed to set private key ID: %w", err)
+	}
+	if err := pubKey.Set(jwk.KeyIDKey, tp); err != nil {
+		return "", "", fmt.Errorf("failed to set public key ID: %w", err)
+	}
+
+	// Define file paths
+	privPath := filepath.Join(dir, fmt.Sprintf("key-%s.jwk", tp))
+	pubPath := filepath.Join(dir, fmt.Sprintf("key-%s.pub.jwk", tp))
+
+	// Write private key
+	privJSON, err := json.MarshalIndent(privKey, "", "  ")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to marshal private key: %w", err)
+	}
+	if err := writeFile(privPath, privJSON, 0o600); err != nil {
+		return "", "", err
+	}
+
+	// Write public key
+	pubJSON, err := json.MarshalIndent(pubKey, "", "  ")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to marshal public key: %w", err)
+	}
+	if err := writeFile(pubPath, pubJSON, 0o644); err != nil {
+		return "", "", err
+	}
+
+	return privPath, tp, nil
 }
 
-func writeJSONFile(path string, v any, perm uint32) error {
-	b, err := json.MarshalIndent(v, "", "  ")
+// jwkThumbprint computes RFC 7638 thumbprint using jwx
+func jwkThumbprint(key jwk.Key) (string, error) {
+	// jwx provides built-in thumbprint calculation
+	tp, err := key.Thumbprint(crypto.SHA384)
 	if err != nil {
-		return err
+		return "", fmt.Errorf("failed to compute thumbprint: %w", err)
 	}
-	return writeFile(path, b, perm)
+	return b64u(tp), nil
 }
 
 func writeFile(path string, b []byte, perm uint32) error {
