@@ -21,11 +21,9 @@ Have questions, want to shape the roadmap, or need help integrating TwigBush? Jo
 
 **How to get the most out of it**
 - Post your use case and stack when you join
-- Include version info and minimal repros for bugs
+- Include version info and minimal steps for recreating bugs
 - Share ideas and vote on priorities
 
-
-Invite link: https://discord.gg/TGUCQBerDG
 ---
 
 ## Features
