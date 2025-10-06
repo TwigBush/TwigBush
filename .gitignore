@@ -1,5 +1,7 @@
+# cli
 twigbush
-
+# release folder
+dist
 # Binaries for programs and plugins
 *.exe
 *.exe~

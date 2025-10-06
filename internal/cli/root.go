@@ -34,7 +34,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgPath, "config", defaultCfg, "config file path")
 
 	// Wire top level groups
-	rootCmd.AddCommand(cmdInit(), cmdRun(), cmdKeys(), cmdSign(), cmdGrant(), cmdToken(), cmdAS())
+	rootCmd.AddCommand(cmdInit(), cmdRun(), cmdKeys(), cmdSign(), cmdGrant(), cmdToken(), cmdAS(), cmdVersion())
 
 	// Friendly hint on no args
 	rootCmd.SilenceUsage = true
