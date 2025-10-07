@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"net/http"
 	"os"
 
@@ -8,6 +9,7 @@ import (
 	mw2 "github.com/TwigBush/gnap-go/internal/mw"
 	"github.com/TwigBush/gnap-go/internal/playground"
 	"github.com/TwigBush/gnap-go/internal/types"
+	"github.com/TwigBush/gnap-go/internal/version"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -57,8 +59,8 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 	cont := handlers.NewContinueHandler(d.Store)
 	device := handlers.NewDeviceHandler(d.Store)
 
-	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-	r.Get("/version", handlers.Version)
+	r.Get("/healthz", healthCheckHandler)
+	r.Get("/version", handlers.VersionHandler)
 
 	r.Post("/grants", grant.ServeHTTP)
 	r.Post("/continue/{grantId}", cont.ServeHTTP)
@@ -88,4 +90,12 @@ func BuildPlaygroundRouter(d Deps, opts Options) http.Handler {
 	playground.MountUI(r)
 	playground.MountDebug(r, d.Store)
 	return r
+}
+
+func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"status":  "healthy",
+		"version": version.Version,
+	})
 }

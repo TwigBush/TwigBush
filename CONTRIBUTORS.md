@@ -5,15 +5,6 @@ We gratefully acknowledge their work and welcome new contributors!
 
 ---
 
-## Maintainers
-
-* **Gianni Crivello** – Lead Maintainer & Project Founder
-* **Josh Fischer** – Lead Maintainer & Project Founder
-
-Maintainers are responsible for reviewing contributions, guiding project direction, and upholding the [Code of Conduct](https://github.com/cncf/foundation/blob/main/code-of-conduct.md).
-
----
-
 ## Contributors
 
 Contributors include anyone who has submitted code, documentation, design, or other improvements to the project.

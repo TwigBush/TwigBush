@@ -135,17 +135,9 @@ type KeyPair struct {
 
 type Proof string
 
-const (
-	HTTPSig    Proof = "httpsig"
-	MTLs       Proof = "mtls"
-	DPoP       Proof = "dpop"
-	JSECP256k1 Proof = "jsecp256k1"
-)
-
 type ProofMethod struct {
 	HTTPSig Proof
 	MTLs    Proof
-	DPoP    Proof
 }
 
 type Configuration struct {

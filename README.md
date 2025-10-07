@@ -21,17 +21,15 @@ Have questions, want to shape the roadmap, or need help integrating TwigBush? Jo
 
 **How to get the most out of it**
 - Post your use case and stack when you join
-- Include version info and minimal repros for bugs
+- Include version info and minimal steps for recreating bugs
 - Share ideas and vote on priorities
 
-
-Invite link: https://discord.gg/TGUCQBerDG
 ---
 
 ## Features
 
 * **GNAP Authorization Server**: Manages grant lifecycle and token issuance
-* **Proof-of-Possession Tokens**: DPoP, mTLS, detached JWS, and HTTP message signatures
+* **Proof-of-Possession Tokens**: mTLS, detached JWS, and HTTP message signatures
 * **Short-Lived, Key-Bound Tokens**: Configurable TTL, audience, and constraints
 * **Resource Server Toolkit**: RS discovery, introspection, and resource registration (per RFC 9767)
 * **Policy Integration**: Adapters for [OpenFGA](https://openfga.dev/) or other policy engines (Zanzibar-style graphs)
@@ -77,7 +75,7 @@ The AS listens on `:8085` by default.
 go run ./cmd/playground
 ```
 
-The demo listens on `http://localhost:8089/playground` by default.
+The playground listens on `http://localhost:8088/playground` by default.
 
 ### Run the Resource Server Command Line Client Example
 
@@ -101,12 +99,7 @@ This example validates GNAP proof-of-possession tokens against the AS.
 
 ## Roadmap
 
-* [ ] Full DPoP support
-* [ ] Advanced RS–AS coordination (RFC 9767 resource registration & downstream tokens)
-* [ ] Policy adapters (OpenFGA/Zanzibar)
-* [ ] CLI tooling for administration and debugging
-* [ ] Helm charts and container images
-* [ ] What else would you like to see?
+See [Projects for roadmap items](https://github.com/TwigBush/TwigBush/projects?query=is%3Aopen)
 
 See [Issues](https://github.com/TwigBush/TwigBush/issues) for active work.
 

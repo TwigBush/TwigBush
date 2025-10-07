@@ -1,15 +1,19 @@
 package handlers
 
 import (
-	"log"
+	"encoding/json"
 	"net/http"
+
+	"github.com/TwigBush/gnap-go/internal/version"
 )
 
-func Version(w http.ResponseWriter, r *http.Request) {
-	// verify request proof (detached JWS or DPoP)
-	// decode GNAP grant request
-	// call policy.Check(...)
-	// issue short TTL key-bound token or start interact flow
-	log.Print("Version called")
-	w.WriteHeader(http.StatusNotImplemented)
+// VersionHandler returns version information as JSON
+func VersionHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("X-API-Version", version.Version)
+
+	if err := json.NewEncoder(w).Encode(version.Get()); err != nil {
+		http.Error(w, "Failed to encode version", http.StatusInternalServerError)
+		return
+	}
 }
