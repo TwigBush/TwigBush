@@ -63,6 +63,7 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 	r.Get("/version", handlers.VersionHandler)
 
 	r.Post("/grants", grant.ServeHTTP)
+	r.Options("/grants", GrantDiscoveryHandler)
 	r.Post("/continue/{grantId}", cont.ServeHTTP)
 	r.Post("/introspect", handlers.Introspect)
 	r.Get("/.well-known/jwks.json", handlers.JWKS)
