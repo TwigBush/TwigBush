@@ -2,7 +2,7 @@ package cli
 
 import (
 	"fmt"
-	"os"
+
 	"path/filepath"
 
 	"github.com/spf13/cobra"
@@ -66,9 +66,4 @@ func cmdKeysNew() *cobra.Command {
 	c.Flags().StringVar(&rsID, "rs-id", "", "Resource server identifier, for example checkout")
 	c.Flags().StringVar(&adminToken, "admin-token", "", "admin bearer token for AS")
 	return c
-}
-
-// small wrapper to allow custom perms without fs import in other file
-func osWriteFile(path string, b []byte, perm uint32) error {
-	return os.WriteFile(path, b, os.FileMode(perm))
 }
