@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/handlers"
 	mw2 "github.com/TwigBush/gnap-go/internal/mw"
 	"github.com/TwigBush/gnap-go/internal/playground"
@@ -21,7 +22,8 @@ type Options struct {
 }
 
 type Deps struct {
-	Store types.Store
+	GrantStore types.GrantStore
+	RSKeyStore *gnap.RSKeyStore
 }
 
 func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) http.Handler {
@@ -55,9 +57,9 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 		RedactHeaders: []string{"Authorization"},
 	}))
 
-	grant := handlers.NewGrantHandler(d.Store)
-	cont := handlers.NewContinueHandler(d.Store)
-	device := handlers.NewDeviceHandler(d.Store)
+	grant := handlers.NewGrantHandler(d.GrantStore)
+	cont := handlers.NewContinueHandler(d.GrantStore)
+	device := handlers.NewDeviceHandler(d.GrantStore)
 
 	r.Get("/healthz", healthCheckHandler)
 	r.Get("/version", handlers.VersionHandler)
@@ -71,6 +73,17 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 	r.Post("/device/verify", device.VerifyForm)
 	r.Get("/device", device.Page)
 	r.Post("/device/consent", device.ConsentForm)
+
+	if d.RSKeyStore != nil {
+		rsKeys := handlers.NewRSKeysHandler(d.RSKeyStore)
+		r.Route("/admin/tenants/{tenant}/rs/keys", func(r chi.Router) {
+			r.Post("/", rsKeys.RegisterKey)
+			r.Get("/", rsKeys.ListKeys)
+			r.Get("/{thumb256}", rsKeys.GetKey)
+			r.Delete("/{thumb256}", rsKeys.DeactivateKey)
+		})
+
+	}
 
 	return r
 }
@@ -88,7 +101,7 @@ func BuildPlaygroundRouter(d Deps, opts Options) http.Handler {
 	sse := playground.NewSSEHub()
 	r.Get("/events", sse.ServeHTTP)
 	playground.MountUI(r)
-	playground.MountDebug(r, d.Store)
+	playground.MountDebug(r, d.GrantStore)
 	return r
 }
 

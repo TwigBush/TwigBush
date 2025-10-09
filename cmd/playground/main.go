@@ -13,13 +13,13 @@ import (
 
 func main() {
 	store := mustStore()
-	h := server.BuildPlaygroundRouter(server.Deps{Store: store}, server.Options{
+	h := server.BuildPlaygroundRouter(server.Deps{GrantStore: store}, server.Options{
 		DevNoStore: true,
 	})
 	log.Fatal(http.ListenAndServe(":8088", h))
 }
 
-func mustStore() types.Store {
+func mustStore() types.GrantStore {
 	s, err := gnap.NewFileStore(defaultDataDir(), types.Config{GrantTTLSeconds: 120})
 	if err != nil {
 		panic(err)
