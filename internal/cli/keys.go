@@ -8,5 +8,6 @@ func cmdKeys() *cobra.Command {
 		Short: "Key management",
 	}
 	c.AddCommand(cmdKeysNew())
+	c.AddCommand(cmdKeysRegister())
 	return c
 }

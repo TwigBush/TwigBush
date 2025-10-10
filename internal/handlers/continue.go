@@ -12,11 +12,11 @@ import (
 )
 
 type ContinueHandler struct {
-	Store       types.Store
+	Store       types.GrantStore
 	WaitSeconds int // how long the client should wait before polling /continue
 }
 
-func NewContinueHandler(store types.Store) *ContinueHandler {
+func NewContinueHandler(store types.GrantStore) *ContinueHandler {
 	return &ContinueHandler{Store: store, WaitSeconds: 5}
 }
 
@@ -112,4 +112,4 @@ func baseURL(r *http.Request) string {
 
 // If you wired Config into the store, you can read it from there.
 // For now, return a sane default.
-func grantTokenTTL(_ context.Context, _ types.Store) int64 { return 300 }
+func grantTokenTTL(_ context.Context, _ types.GrantStore) int64 { return 300 }
