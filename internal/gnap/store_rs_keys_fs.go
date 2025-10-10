@@ -3,6 +3,9 @@ package gnap
 import (
 	"context"
 	"crypto"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -209,4 +212,103 @@ func (s *RSKeyStore) loadFromDisk() error {
 	}
 
 	return nil
+}
+
+// LookupRSPublicKeyById retrieves a public key by its key ID (kid) from the store.
+// It searches across all tenants and returns the first active key with matching kid.
+// Returns the crypto.PublicKey interface suitable for signature verification.
+func (s *RSKeyStore) LookupRSPublicKeyById(kid string) (crypto.PublicKey, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	// Search all tenants for the key
+	for tenant, keys := range s.cache {
+		for _, rec := range keys {
+			if rec.KID == kid && rec.Active {
+				// Parse the stored JWK
+				var raw any
+				if err := jwk.ParseRawKey(rec.PubJWK, &raw); err != nil {
+					return nil, fmt.Errorf("parse JWK for kid %s in tenant %s: %w", kid, tenant, err)
+				}
+
+				switch k := raw.(type) {
+				case ed25519.PublicKey:
+					return k, nil
+				case *ecdsa.PublicKey:
+					// (optional) enforce curve
+					if k.Curve != elliptic.P256() {
+						return nil, fmt.Errorf("unsupported EC curve: %s in tenant %s: %s", k.Curve.Params().Name, kid, tenant)
+					}
+					return k, nil
+
+				}
+			}
+		}
+	}
+	return nil, fmt.Errorf("public key not found for kid: %s", kid)
+}
+
+// LookupRSPublicKeyByTenant retrieves a public key by kid from a specific tenant.
+// Use this when you know which tenant the request belongs to.
+func (s *RSKeyStore) LookupRSPublicKeyByTenant(tenant, kid string) (crypto.PublicKey, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	tenantKeys, ok := s.cache[tenant]
+	if !ok {
+		return nil, fmt.Errorf("tenant not found: %s", tenant)
+	}
+
+	for _, rec := range tenantKeys {
+		if rec.KID == kid && rec.Active {
+			var raw any
+			if err := jwk.ParseRawKey(rec.PubJWK, &raw); err != nil {
+				return nil, fmt.Errorf("kid %s: parse raw JWK: %w", kid, err)
+			}
+			switch k := raw.(type) {
+			case ed25519.PublicKey:
+				return k, nil
+			case *ecdsa.PublicKey:
+				// optional: enforce P-256
+				if k.Curve != elliptic.P256() {
+					return nil, fmt.Errorf("kid %s: unsupported EC curve %s", kid, k.Curve.Params().Name)
+				}
+				return k, nil
+			default:
+				return nil, fmt.Errorf("kid %s: unsupported key type %T", kid, k)
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("public key not found for kid %s in tenant %s", kid, tenant)
+}
+
+// LookupRSPublicKeyByThumbprint retrieves a public key by its RFC 7638 thumbprint.
+// This is the canonical way to look up keys as thumbprints are collision-free.
+func (s *RSKeyStore) LookupRSPublicKeyByThumbprint(tenant, thumb256 string) (crypto.PublicKey, error) {
+	rec, ok := s.GetRSKey(context.Background(), tenant, thumb256)
+	if !ok {
+		return nil, fmt.Errorf("key not found for thumbprint: %s", thumb256)
+	}
+	if !rec.Active {
+		return nil, fmt.Errorf("key is inactive")
+	}
+
+	var raw any
+	if err := jwk.ParseRawKey(rec.PubJWK, &raw); err != nil {
+		return nil, fmt.Errorf("parse raw JWK: %w", err)
+	}
+
+	switch k := raw.(type) {
+	case ed25519.PublicKey:
+		return k, nil
+	case *ecdsa.PublicKey:
+		// optional: enforce P-256 only
+		if k.Curve != elliptic.P256() {
+			return nil, fmt.Errorf("unsupported EC curve: %s", k.Curve.Params().Name)
+		}
+		return k, nil
+	default:
+		return nil, fmt.Errorf("unsupported key type %T", k)
+	}
 }

@@ -70,10 +70,9 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 			mw2.WithRSKeyResolver(func(r *http.Request, params map[string]string) (crypto.PublicKey, error) {
 				// Resolve by keyid, or by RS identity in mTLS, or by tenant
 				// todo: finish
-				//kid := params["keyid"]
+				kid := params["keyid"]
+				return d.RSKeyStore.LookupRSPublicKeyById(kid)
 
-				//return lookupRSPublicKey(kid) // return crypto.PublicKey
-				return nil, nil
 			}),
 			mw2.WithRSRequiredComponents([]string{"@method", "@target-uri"}), // add "content-digest" if you require it
 			mw2.WithRSAllowedAlgs("ed25519", "ecdsa-p256-sha256"),

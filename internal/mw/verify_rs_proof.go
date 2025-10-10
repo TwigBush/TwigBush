@@ -5,7 +5,9 @@ import (
 	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
+	"crypto/elliptic"
 	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -49,7 +51,7 @@ func VerifyRSProof(opts ...RSOption) func(http.Handler) http.Handler {
 	cfg := &rsCfg{
 		requireTLS:     true,
 		requiredComps:  []string{"@method", "@target-uri"},
-		allowedAlgs:    toSet([]string{"ed25519", "ecdsa-p256-sha256"}),
+		allowedAlgs:    toSet([]string{"ecdsa-p256-sha256", "ecdsa-p384-sha384", "ed25519"}),
 		maxSkewSeconds: 300,
 	}
 	for _, o := range opts {
@@ -332,6 +334,16 @@ func verifySignature(alg string, pub crypto.PublicKey, base, sig []byte) error {
 			return errors.New("key type mismatch")
 		}
 		if !ed25519.Verify(pk, base, sig) {
+			return errors.New("bad signature")
+		}
+		return nil
+	case "ecdsa-p384-sha384":
+		pk, ok := pub.(*ecdsa.PublicKey)
+		if !ok || pk.Curve != elliptic.P384() {
+			return errors.New("key type mismatch")
+		}
+		h := sha512.Sum384(base)
+		if ok := ecdsa.VerifyASN1(pk, h[:], sig); !ok {
 			return errors.New("bad signature")
 		}
 		return nil
