@@ -30,7 +30,7 @@ type RSKeyRecord struct {
 type RSKeyStore struct {
 	mu      sync.RWMutex
 	dataDir string
-	cache   map[string]map[string]RSKeyRecord // tenant -> thumb256 -> record
+	cache   map[string]map[string]RSKeyRecord // tenant -> thumb256 -> record // todo make this fs or database
 }
 
 func NewRSKeyStore(dataDir string) (*RSKeyStore, error) {

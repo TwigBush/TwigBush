@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -64,9 +65,27 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 	r.Get("/healthz", healthCheckHandler)
 	r.Get("/version", handlers.VersionHandler)
 
-	r.Post("/grants", grant.ServeHTTP)
-	r.Post("/continue/{grantId}", cont.ServeHTTP)
-	r.Post("/introspect", handlers.Introspect)
+	r.Route("/", func(rsr chi.Router) {
+		rsr.Use(mw2.VerifyRSProof(
+			mw2.WithRSKeyResolver(func(r *http.Request, params map[string]string) (crypto.PublicKey, error) {
+				// Resolve by keyid, or by RS identity in mTLS, or by tenant
+				// todo: finish
+				//kid := params["keyid"]
+
+				//return lookupRSPublicKey(kid) // return crypto.PublicKey
+				return nil, nil
+			}),
+			mw2.WithRSRequiredComponents([]string{"@method", "@target-uri"}), // add "content-digest" if you require it
+			mw2.WithRSAllowedAlgs("ed25519", "ecdsa-p256-sha256"),
+		))
+		rsr.Post("/grants", grant.ServeHTTP)
+
+		rsr.Post("/continue/{grantId}", cont.ServeHTTP)
+		rsr.Post("/introspect", handlers.Introspect)
+		//rsr.Post("/register", rs.HandleRegisterResourceSet)
+		//rsr.Post("/token", rs.HandleTokenChaining)
+	})
+
 	r.Get("/.well-known/jwks.json", handlers.JWKS)
 
 	r.Post("/device/verify/json", device.VerifyJSON)

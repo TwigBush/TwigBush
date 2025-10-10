@@ -53,8 +53,6 @@ func TestOsWriteFile_CanBeOverridden(t *testing.T) {
 		return nil
 	}
 
-	// Call through your wrapper to prove it uses the seam.
-	// If you do not have writeFile, you can call osWriteFile directly here.
 	if err := writeFile("x/y/z.txt", []byte("stubbed"), 0o777); err != nil {
 		t.Fatalf("writeFile error: %v", err)
 	}
