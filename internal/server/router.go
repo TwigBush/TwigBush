@@ -75,7 +75,7 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 
 			}),
 			mw2.WithRSRequiredComponents([]string{"@method", "@target-uri"}), // add "content-digest" if you require it
-			mw2.WithRSAllowedAlgs("ed25519", "ecdsa-p256-sha256"),
+			mw2.WithRSAllowedAlgs("ecdsa-p256-sha256", "ecdsa-p384-sha384", "ed25519"),
 		))
 		rsr.Post("/grants", grant.ServeHTTP)
 

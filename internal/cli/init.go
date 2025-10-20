@@ -50,7 +50,7 @@ func cmdInit() *cobra.Command {
 				return fmt.Errorf("failed to create default tenant directory: %w", err)
 			}
 			// Generate a default key
-			keyPath, thumb, err := generateKey(keysDir, keyType)
+			keyPath, thumb, err := generateKey(keysDir, "")
 			if err != nil {
 				return err
 			}

@@ -49,7 +49,7 @@ func toSet(xs []string) map[string]struct{} {
 // It expects headers: Signature-Input and Signature with label `sig1`.
 func VerifyRSProof(opts ...RSOption) func(http.Handler) http.Handler {
 	cfg := &rsCfg{
-		requireTLS:     true,
+		requireTLS:     false, // todo (joshfischer) derive this from config.yaml
 		requiredComps:  []string{"@method", "@target-uri"},
 		allowedAlgs:    toSet([]string{"ecdsa-p256-sha256", "ecdsa-p384-sha384", "ed25519"}),
 		maxSkewSeconds: 300,

@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
@@ -47,20 +48,43 @@ func cmdSignCurl() *cobra.Command {
 				return fmt.Errorf("read key: %w", err)
 			}
 
-			var priv any
-			if err := jwk.ParseRawKey(privJWK, &priv); err != nil {
-				return fmt.Errorf("parse raw jwk: %w", err)
+			//var priv any
+			//if err := jwk.ParseRawKey(privJWK, &priv); err != nil {
+			//	return fmt.Errorf("parse raw jwk: %w", err)
+			//}
+			//k, err := jwk.ParseKey(privJWK)
+			//if err != nil {
+			//	return fmt.Errorf("parse jwk: %w", err)
+			//}
+			// Load JWK twice: once as raw private key for signing, once to read kid
+			privJWK, err = os.ReadFile(keyPath)
+			if err != nil {
+				return fmt.Errorf("read key: %w", err)
 			}
+
+			// Parse as JWK first
 			k, err := jwk.ParseKey(privJWK)
 			if err != nil {
 				return fmt.Errorf("parse jwk: %w", err)
 			}
+
 			kidStr, ok := k.KeyID()
 			if !ok {
 				return fmt.Errorf("key missing kid")
 			}
 
+			// Extract the raw crypto key from the JWK using ParseRawKey directly
+			var priv any
+			if err := jwk.ParseRawKey(privJWK, &priv); err != nil {
+				return fmt.Errorf("extract raw key: %w", err)
+			}
+
 			alg := strings.ToLower(strings.TrimSpace(algFlag))
+			if !ok {
+				return fmt.Errorf("key missing kid")
+			}
+
+			//alg := strings.ToLower(strings.TrimSpace(algFlag))
 			if alg == "" {
 				switch pk := priv.(type) {
 				case ed25519.PrivateKey:
@@ -118,7 +142,7 @@ func cmdSignCurl() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("base: %w", err)
 			}
-
+			fmt.Println("Signature Base: %D, %D, %D", priv, alg, base)
 			sig, err := signBase(priv, alg, base)
 			if err != nil {
 				return err
@@ -224,14 +248,14 @@ func signBase(priv any, alg string, base []byte) ([]byte, error) {
 			return nil, fmt.Errorf("key not ecdsa p256")
 		}
 		sum := sha256.Sum256(base)
-		return ecdsa.SignASN1(nil, pk, sum[:])
+		return ecdsa.SignASN1(rand.Reader, pk, sum[:])
 	case "ecdsa-p384-sha384":
 		pk, ok := priv.(*ecdsa.PrivateKey)
 		if !ok || pk.Curve != elliptic.P384() {
 			return nil, fmt.Errorf("key not ecdsa p384")
 		}
 		sum := sha512.Sum384(base)
-		return ecdsa.SignASN1(nil, pk, sum[:])
+		return ecdsa.SignASN1(rand.Reader, pk, sum[:])
 	default:
 		return nil, fmt.Errorf("unsupported alg %q", alg)
 	}

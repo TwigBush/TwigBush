@@ -11,6 +11,7 @@ import (
 func cmdKeysNew() *cobra.Command {
 	var keyType, asURL, rsID, adminToken, tenant string
 	var doRegister bool
+	var kidFlag string
 
 	c := &cobra.Command{
 		Use:   "new",
@@ -24,11 +25,11 @@ func cmdKeysNew() *cobra.Command {
 			if err := ensureDir(keysDir); err != nil {
 				return err
 			}
-			path, tp, err := generateKey(keysDir, keyType)
+			path, kid, err := generateKey(keysDir, kidFlag)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Wrote %s\nThumbprint: %s\n", path, tp)
+			fmt.Printf("Wrote %s\nKey ID: %s\n", path, kid)
 
 			// Optionally update default key in config if empty
 			cfg, err := loadConfig(cfgPath)
@@ -60,6 +61,8 @@ func cmdKeysNew() *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&keyType, "type", "jwk", "key type: jwk")
+	c.Flags().StringVar(&kidFlag, "kid", "", "override key ID; defaults to SHA-256 thumbprint")
+
 	c.Flags().BoolVar(&doRegister, "register", false, "register the new public key with the AS")
 	c.Flags().StringVar(&asURL, "as", "", "AS base URL, for example http://localhost:8089")
 	c.Flags().StringVar(&tenant, "tenant", "default", "Tenant ID (default: default)")
