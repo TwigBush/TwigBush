@@ -224,7 +224,8 @@ func (s *RSKeyStore) LookupRSPublicKeyById(kid string) (crypto.PublicKey, error)
 	// Search all tenants for the key
 	for tenant, keys := range s.cache {
 		for _, rec := range keys {
-			if rec.KID == kid && rec.Active {
+			// todo ;if rec.KID == kid && rec.Active {
+			if rec.KID == kid {
 				// Parse the stored JWK
 				var raw any
 				if err := jwk.ParseRawKey(rec.PubJWK, &raw); err != nil {
@@ -236,7 +237,7 @@ func (s *RSKeyStore) LookupRSPublicKeyById(kid string) (crypto.PublicKey, error)
 					return k, nil
 				case *ecdsa.PublicKey:
 					// (optional) enforce curve
-					if k.Curve != elliptic.P256() {
+					if k.Curve != elliptic.P256() && k.Curve != elliptic.P384() {
 						return nil, fmt.Errorf("unsupported EC curve: %s in tenant %s: %s", k.Curve.Params().Name, kid, tenant)
 					}
 					return k, nil

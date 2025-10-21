@@ -142,7 +142,6 @@ func cmdSignCurl() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("base: %w", err)
 			}
-			fmt.Println("Signature Base: %D, %D, %D", priv, alg, base)
 			sig, err := signBase(priv, alg, base)
 			if err != nil {
 				return err
