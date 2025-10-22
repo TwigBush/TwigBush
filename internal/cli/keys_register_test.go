@@ -40,8 +40,8 @@ func TestRegisterKeyWithAS_Success_UsesDerivedPubAndAuthorization(t *testing.T) 
 	pub := filepath.Join(dir, "key.pub.jwk")
 
 	// Minimal valid JSON for a JWK object
-	testWriteFile(t, priv, []byte(`{"dummy":"priv"}`)) // not read by the function
-	testWriteFile(t, pub, []byte(`{"kty":"EC","crv":"P-256","x":"AA","y":"BB"}`))
+	testWriteFile(t, priv, []byte(`{"dummy":"priv", "kid": "1"}`)) // not read by the function
+	testWriteFile(t, pub, []byte(`{ "kid": "2", "kty":"EC","crv":"P-256","x":"AA","y":"BB"}`))
 
 	seen := struct {
 		method string
@@ -106,13 +106,13 @@ func TestRegisterKeyWithAS_Success_UsesDerivedPubAndAuthorization(t *testing.T) 
 func TestRegisterKeyWithAS_Success_WhenPrivIsPubFile(t *testing.T) {
 	dir := t.TempDir()
 	pub := filepath.Join(dir, "my.pub.jwk")
-	testWriteFile(t, pub, []byte(`{}`))
+	testWriteFile(t, pub, []byte(`{"kty":"oct","k":"AA","kid":"test-kid"}`))
 
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{"kty":"oct","k":"AA","kid":"test-kid"}`))
 	}))
 	defer srv.Close()
 
@@ -128,7 +128,7 @@ func TestRegisterKeyWithAS_Success_WhenPrivIsPubFile(t *testing.T) {
 func TestRegisterKeyWithAS_Non2xx(t *testing.T) {
 	dir := t.TempDir()
 	pub := filepath.Join(dir, "k.pub.jwk")
-	testWriteFile(t, pub, []byte(`{}`))
+	testWriteFile(t, pub, []byte(`{"kty":"oct","k":"AA","kid":"test-kid"}`))
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "oops", http.StatusBadRequest)
