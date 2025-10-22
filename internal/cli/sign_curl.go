@@ -8,6 +8,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -21,13 +22,15 @@ import (
 
 func cmdSignCurl() *cobra.Command {
 	var (
-		keyPath  string
-		method   string
-		rawURL   string
-		httpsig  bool
-		bodyPath string
-		tenant   string
-		algFlag  string // optional override: ed25519 | ecdsa-p256-sha256 | ecdsa-p384-sha384
+		keyPath           string
+		method            string
+		rawURL            string
+		httpsig           bool
+		bodyPath          string
+		tenant            string
+		algFlag           string // optional override: ed25519 | ecdsa-p256-sha256 | ecdsa-p384-sha384
+		continuationToken string
+		includeClientKey  bool
 	)
 	c := &cobra.Command{
 		Use:   "curl",
@@ -48,20 +51,6 @@ func cmdSignCurl() *cobra.Command {
 				return fmt.Errorf("read key: %w", err)
 			}
 
-			//var priv any
-			//if err := jwk.ParseRawKey(privJWK, &priv); err != nil {
-			//	return fmt.Errorf("parse raw jwk: %w", err)
-			//}
-			//k, err := jwk.ParseKey(privJWK)
-			//if err != nil {
-			//	return fmt.Errorf("parse jwk: %w", err)
-			//}
-			// Load JWK twice: once as raw private key for signing, once to read kid
-			privJWK, err = os.ReadFile(keyPath)
-			if err != nil {
-				return fmt.Errorf("read key: %w", err)
-			}
-
 			// Parse as JWK first
 			k, err := jwk.ParseKey(privJWK)
 			if err != nil {
@@ -73,18 +62,14 @@ func cmdSignCurl() *cobra.Command {
 				return fmt.Errorf("key missing kid")
 			}
 
-			// Extract the raw crypto key from the JWK using ParseRawKey directly
+			// Extract the raw crypto key
 			var priv any
 			if err := jwk.ParseRawKey(privJWK, &priv); err != nil {
 				return fmt.Errorf("extract raw key: %w", err)
 			}
 
 			alg := strings.ToLower(strings.TrimSpace(algFlag))
-			if !ok {
-				return fmt.Errorf("key missing kid")
-			}
 
-			//alg := strings.ToLower(strings.TrimSpace(algFlag))
 			if alg == "" {
 				switch pk := priv.(type) {
 				case ed25519.PrivateKey:
@@ -109,16 +94,54 @@ func cmdSignCurl() *cobra.Command {
 			}
 
 			var body []byte
-			if bodyPath != "" {
+			if bodyPath != "" && includeClientKey {
 				body, err = os.ReadFile(bodyPath)
 				if err != nil {
 					return fmt.Errorf("read body: %w", err)
 				}
+
+				// Wrap body with GNAP client.key structure
+				pubPath := strings.TrimSuffix(keyPath, ".jwk") + ".pub.jwk"
+				pubJWK, err := os.ReadFile(pubPath)
+				if err != nil {
+					return fmt.Errorf("read public key: %w", err)
+				}
+
+				var pubKeyMap map[string]any
+				if err := json.Unmarshal(pubJWK, &pubKeyMap); err != nil {
+					return fmt.Errorf("parse public key: %w", err)
+				}
+
+				// Parse the original body
+				var originalBody map[string]any
+				if err := json.Unmarshal(body, &originalBody); err != nil {
+					return fmt.Errorf("parse body: %w", err)
+				}
+
+				// Add client.key to the body for GNAP
+				if originalBody["client"] == nil {
+					originalBody["client"] = make(map[string]any)
+				}
+				clientMap := originalBody["client"].(map[string]any)
+				clientMap["key"] = map[string]any{
+					"proof": "httpsig",
+					"jwk":   pubKeyMap,
+				}
+
+				// Re-marshal the body with client.key added
+				body, err = json.Marshal(originalBody)
+				if err != nil {
+					return fmt.Errorf("marshal wrapped body: %w", err)
+				}
 			}
 
-			// Optional Content-Digest (recommended when body is present) – GNAP verifier should check it. :contentReference[oaicite:2]{index=2}
+			// Optional Content-Digest (recommended when body is present)
 			headers := map[string]string{}
 			comps := []string{"@method", "@target-uri"}
+			if continuationToken != "" {
+				headers["Authorization"] = "GNAP " + continuationToken
+				comps = append(comps, "authorization") // ensure token is signed
+			}
 			if len(body) > 0 {
 				d := sha256.Sum256(body)
 				headers["Content-Digest"] = "sha-256=:" + base64.StdEncoding.EncodeToString(d[:]) + ":"
@@ -149,7 +172,8 @@ func cmdSignCurl() *cobra.Command {
 			headers["Signature"] = "sig1=:" + base64.StdEncoding.EncodeToString(sig) + ":"
 
 			// Print curl command
-			fmt.Println(curlForCLI(strings.ToUpper(method), rawURL, bodyPath, headers))
+			fmt.Println(curlForCLI(strings.ToUpper(method), rawURL, body, headers))
+
 			return nil
 		},
 	}
@@ -162,6 +186,9 @@ func cmdSignCurl() *cobra.Command {
 	c.Flags().StringVar(&bodyPath, "body", "", "path to request body (optional)")
 	c.Flags().StringVar(&tenant, "tenant", "default", "X-Tenant-ID header (optional)")
 	c.Flags().StringVar(&algFlag, "alg", "", "override alg (ed25519|ecdsa-p256-sha256|ecdsa-p384-sha384)")
+	c.Flags().StringVar(&continuationToken, "continuation-token", "", "continuation token for continue grant requests")
+	c.Flags().BoolVar(&includeClientKey, "include-client-key", false, "include client.key in body (grant only)")
+
 	return c
 }
 
@@ -260,7 +287,7 @@ func signBase(priv any, alg string, base []byte) ([]byte, error) {
 	}
 }
 
-func curlForCLI(method, rawURL, bodyPath string, headers map[string]string) string {
+func curlForCLI(method, rawURL string, body []byte, headers map[string]string) string {
 	var b strings.Builder
 	b.WriteString("curl -sS -X ")
 	b.WriteString(method)
@@ -270,9 +297,9 @@ func curlForCLI(method, rawURL, bodyPath string, headers map[string]string) stri
 		b.WriteString(" -H ")
 		b.WriteString(fmt.Sprintf("%q", fmt.Sprintf("%s: %s", k, v)))
 	}
-	if bodyPath != "" {
-		b.WriteString(" --data-binary @")
-		b.WriteString(fmt.Sprintf("%q", bodyPath))
+	if len(body) > 0 {
+		b.WriteString(" -d ")
+		b.WriteString(fmt.Sprintf("%q", string(body)))
 		b.WriteString(" -H \"Content-Type: application/json\"")
 	}
 	return b.String()
