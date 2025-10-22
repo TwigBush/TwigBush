@@ -5,6 +5,7 @@ import (
 	"net/http"
 )
 
+// grantDiscoveryResp defines the GNAP AS discovery document.
 type grantDiscoveryResp struct {
 	GrantReqEndpoint                  string   `json:"grant_request_endpoint"`
 	InteractionStartModesSupported    []string `json:"interaction_start_modes_supported,omitempty"`
@@ -15,28 +16,42 @@ type grantDiscoveryResp struct {
 	KeyRotationSupported              *bool    `json:"key_rotation_supported,omitempty"`
 }
 
-func GrantDiscoveryHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodOptions {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
+// GrantDiscoveryHandler returns an OPTIONS handler configured with optional fields.
+func GrantDiscoveryHandler(opts Options) http.HandlerFunc {
+	return func(w http.ResponseWriter, req *http.Request) {
+		if req.Method != http.MethodOptions {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 
-	fullURL := buildAbsoluteURL(req)
+		fullURL := buildAbsoluteURL(req)
+		fullURL = ensureHTTPS(fullURL) // RFC 9635: MUST be https
 
-	response := &grantDiscoveryResp{
-		GrantReqEndpoint: fullURL,
-	}
+		var keyRotation *bool
+		if opts.KeyRotationSupported {
+			keyRotation = &opts.KeyRotationSupported
+		}
 
-	w.Header().Set("Content-Type", "application/json")
+		response := &grantDiscoveryResp{
+			GrantReqEndpoint:                  fullURL,
+			InteractionStartModesSupported:    opts.InteractionStartModes,
+			InteractionFinishMethodsSupported: opts.InteractionFinishMethods,
+			KeyProofsSupported:                opts.KeyProofs,
+			SubIDFormatsSupported:             opts.SubIDFormats,
+			AssertionFormatsSupported:         opts.AssertionFormats,
+			KeyRotationSupported:              keyRotation,
+		}
 
-	w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
 
-	err := json.NewEncoder(w).Encode(response)
-	if err != nil {
-		http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			http.Error(w, "failed to encode response", http.StatusInternalServerError)
+		}
 	}
 }
 
+// buildAbsoluteURL constructs a full URL using X-Forwarded-Proto or TLS detection.
 func buildAbsoluteURL(r *http.Request) string {
 	scheme := r.Header.Get("X-Forwarded-Proto")
 	if scheme == "" {
@@ -52,7 +67,13 @@ func buildAbsoluteURL(r *http.Request) string {
 		host = r.URL.Host
 	}
 
-	finalURL := scheme + "://" + host + r.URL.RequestURI()
+	return scheme + "://" + host + r.URL.RequestURI()
+}
 
-	return finalURL
+// ensureHTTPS forces https scheme in URLs.
+func ensureHTTPS(url string) string {
+	if len(url) >= 7 && url[:7] == "https://" {
+		return "https://" + url[7:]
+	}
+	return url
 }
