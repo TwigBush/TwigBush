@@ -33,7 +33,6 @@ func (h *GrantHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// todo (joshfischer) finish here
 	if req.Client.Key.Proof == "" || req.Client.Key.JWK.Kty == "" || len(req.AccessToken) == 0 {
 		httpx.WriteError(w, http.StatusBadRequest, "missing client.key or access")
 		return
