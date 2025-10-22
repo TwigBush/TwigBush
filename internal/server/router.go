@@ -1,10 +1,12 @@
 package server
 
 import (
+	"crypto"
 	"encoding/json"
 	"net/http"
 	"os"
 
+	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/handlers"
 	mw2 "github.com/TwigBush/gnap-go/internal/mw"
 	"github.com/TwigBush/gnap-go/internal/playground"
@@ -21,7 +23,8 @@ type Options struct {
 }
 
 type Deps struct {
-	Store types.Store
+	GrantStore types.GrantStore
+	RSKeyStore *gnap.RSKeyStore
 }
 
 func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) http.Handler {
@@ -55,22 +58,50 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 		RedactHeaders: []string{"Authorization"},
 	}))
 
-	grant := handlers.NewGrantHandler(d.Store)
-	cont := handlers.NewContinueHandler(d.Store)
-	device := handlers.NewDeviceHandler(d.Store)
+	grant := handlers.NewGrantHandler(d.GrantStore)
+	cont := handlers.NewContinueHandler(d.GrantStore)
+	device := handlers.NewDeviceHandler(d.GrantStore)
 
 	r.Get("/healthz", healthCheckHandler)
 	r.Get("/version", handlers.VersionHandler)
 
-	r.Post("/grants", grant.ServeHTTP)
-	r.Post("/continue/{grantId}", cont.ServeHTTP)
-	r.Post("/introspect", handlers.Introspect)
+	r.Route("/", func(rsr chi.Router) {
+		rsr.Use(mw2.VerifyRSProof(
+			mw2.WithRSKeyResolver(func(r *http.Request, params map[string]string) (crypto.PublicKey, error) {
+				// Resolve by keyid, or by RS identity in mTLS, or by tenant
+				// todo: finish
+				kid := params["keyid"]
+				return d.RSKeyStore.LookupRSPublicKeyById(kid)
+
+			}),
+			mw2.WithRSRequiredComponents([]string{"@method", "@target-uri"}), // add "content-digest" if you require it
+			mw2.WithRSAllowedAlgs("ecdsa-p256-sha256", "ecdsa-p384-sha384", "ed25519"),
+		))
+		rsr.Post("/grants", grant.ServeHTTP)
+
+		rsr.Post("/continue/{grantId}", cont.ServeHTTP)
+		rsr.Post("/introspect", handlers.Introspect)
+		//rsr.Post("/register", rs.HandleRegisterResourceSet)
+		//rsr.Post("/token", rs.HandleTokenChaining)
+	})
+
 	r.Get("/.well-known/jwks.json", handlers.JWKS)
 
 	r.Post("/device/verify/json", device.VerifyJSON)
 	r.Post("/device/verify", device.VerifyForm)
 	r.Get("/device", device.Page)
 	r.Post("/device/consent", device.ConsentForm)
+
+	if d.RSKeyStore != nil {
+		rsKeys := handlers.NewRSKeysHandler(d.RSKeyStore)
+		r.Route("/admin/tenants/{tenant}/rs/keys", func(r chi.Router) {
+			r.Post("/", rsKeys.RegisterKey)
+			r.Get("/", rsKeys.ListKeys)
+			r.Get("/{thumb256}", rsKeys.GetKey)
+			r.Delete("/{thumb256}", rsKeys.DeactivateKey)
+		})
+
+	}
 
 	return r
 }
@@ -88,7 +119,7 @@ func BuildPlaygroundRouter(d Deps, opts Options) http.Handler {
 	sse := playground.NewSSEHub()
 	r.Get("/events", sse.ServeHTTP)
 	playground.MountUI(r)
-	playground.MountDebug(r, d.Store)
+	playground.MountDebug(r, d.GrantStore)
 	return r
 }
 

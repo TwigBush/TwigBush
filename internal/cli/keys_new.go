@@ -17,7 +17,7 @@ import (
 
 func b64u(b []byte) string { return base64.RawURLEncoding.EncodeToString(b) }
 
-func generateKey(dir, keyType string) (path string, thumb string, err error) {
+func generateKey(dir, kidOverride string) (path string, kid string, err error) {
 	fmt.Printf("Generating ES384 key...\n")
 
 	// Generate P-384 ECDSA key
@@ -43,10 +43,15 @@ func generateKey(dir, keyType string) (path string, thumb string, err error) {
 		return "", "", fmt.Errorf("failed to get public key: %w", err)
 	}
 
-	// Calculate thumbprint
+	// Compute RFC 7638 thumbprint with SHA-256 for stable kid default
 	tp, err := jwkThumbprint(pubKey)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to calculate thumbprint: %w", err)
+	}
+
+	kidUsed := kidOverride
+	if kidUsed == "" {
+		kidUsed = tp
 	}
 
 	// Set key ID based on thumbprint
@@ -85,7 +90,7 @@ func generateKey(dir, keyType string) (path string, thumb string, err error) {
 // jwkThumbprint computes RFC 7638 thumbprint using jwx
 func jwkThumbprint(key jwk.Key) (string, error) {
 	// jwx provides built-in thumbprint calculation
-	tp, err := key.Thumbprint(crypto.SHA384)
+	tp, err := key.Thumbprint(crypto.SHA256)
 	if err != nil {
 		return "", fmt.Errorf("failed to compute thumbprint: %w", err)
 	}

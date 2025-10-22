@@ -2,14 +2,16 @@ package cli
 
 import (
 	"fmt"
-	"os"
+
 	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
 
 func cmdKeysNew() *cobra.Command {
-	var keyType string
+	var keyType, asURL, rsID, adminToken, tenant string
+	var doRegister bool
+	var kidFlag string
 
 	c := &cobra.Command{
 		Use:   "new",
@@ -23,11 +25,11 @@ func cmdKeysNew() *cobra.Command {
 			if err := ensureDir(keysDir); err != nil {
 				return err
 			}
-			path, tp, err := generateKey(keysDir, keyType)
+			path, kid, err := generateKey(keysDir, kidFlag)
 			if err != nil {
 				return err
 			}
-			fmt.Printf("Wrote %s\nThumbprint: %s\n", path, tp)
+			fmt.Printf("Wrote %s\nKey ID: %s\n", path, kid)
 
 			// Optionally update default key in config if empty
 			cfg, err := loadConfig(cfgPath)
@@ -35,14 +37,36 @@ func cmdKeysNew() *cobra.Command {
 				cfg.DefaultKey = path
 				_ = saveConfig(cfgPath, cfg)
 			}
+
+			// Optional immediate registration
+			if doRegister {
+				if cfg != nil && asURL == "" {
+					asURL = cfg.ASBaseURL
+				}
+				if asURL == "" {
+					return fmt.Errorf("--as is required to register")
+				}
+				if rsID == "" {
+					return fmt.Errorf("--rs-id is required to register")
+				}
+				if tenant == "" {
+					tenant = "default"
+				}
+				if err := registerKeyWithAS(path, asURL, tenant, rsID, adminToken); err != nil {
+					return err
+				}
+				fmt.Println("Registered public key with AS")
+			}
 			return nil
 		},
 	}
-	c.Flags().StringVar(&keyType, "type", "jwk", "jwk")
-	return c
-}
+	c.Flags().StringVar(&keyType, "type", "jwk", "key type: jwk")
+	c.Flags().StringVar(&kidFlag, "kid", "", "override key ID; defaults to SHA-256 thumbprint")
 
-// small wrapper to allow custom perms without fs import in other file
-func osWriteFile(path string, b []byte, perm uint32) error {
-	return os.WriteFile(path, b, os.FileMode(perm))
+	c.Flags().BoolVar(&doRegister, "register", false, "register the new public key with the AS")
+	c.Flags().StringVar(&asURL, "as", "", "AS base URL, for example http://localhost:8089")
+	c.Flags().StringVar(&tenant, "tenant", "default", "Tenant ID (default: default)")
+	c.Flags().StringVar(&rsID, "rs-id", "", "Resource server identifier, for example checkout")
+	c.Flags().StringVar(&adminToken, "admin-token", "", "admin bearer token for AS")
+	return c
 }

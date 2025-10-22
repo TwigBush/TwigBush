@@ -47,6 +47,6 @@ func init() {
 		},
 	})
 	rootCmd.Run = func(cmd *cobra.Command, args []string) {
-		fmt.Println("Use -h for help, for example: twigbush grant request -f samples/grants/basic.json")
+		fmt.Println("TwigBush CLI: Use -h for help")
 	}
 }

@@ -11,11 +11,11 @@ import (
 )
 
 type GrantHandler struct {
-	Store       types.Store
+	Store       types.GrantStore
 	WaitSeconds int // how long the client should wait before polling /continue
 }
 
-func NewGrantHandler(store types.Store) *GrantHandler {
+func NewGrantHandler(store types.GrantStore) *GrantHandler {
 	return &GrantHandler{Store: store, WaitSeconds: 5}
 }
 

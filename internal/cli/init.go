@@ -30,8 +30,33 @@ func cmdInit() *cobra.Command {
 			if err := ensureDir(keysDir); err != nil {
 				return err
 			}
+
+			// Create AS data directory structure for registry
+			// This is where AS stores registered RS public keys
+			asDataDir := filepath.Join(homeDir, "data")
+			if err := ensureDir(asDataDir); err != nil {
+				return fmt.Errorf("failed to create AS data directory: %w", err)
+			}
+
+			// Create RS key registry directory (for AS to store registered RS public keys)
+			rsKeyRegistryDir := filepath.Join(asDataDir, "rs_keys")
+			if err := ensureDir(rsKeyRegistryDir); err != nil {
+				return fmt.Errorf("failed to create RS key registry: %w", err)
+			}
+
+			// Create grants directory (for local storage of grants)
+			grantsDir := filepath.Join(asDataDir, "grants")
+			if err := ensureDir(grantsDir); err != nil {
+				return fmt.Errorf("failed to create grants directory: %w", err)
+			}
+
+			// Create default tenant directory
+			defaultTenantDir := filepath.Join(rsKeyRegistryDir, "default")
+			if err := ensureDir(defaultTenantDir); err != nil {
+				return fmt.Errorf("failed to create default tenant directory: %w", err)
+			}
 			// Generate a default key
-			keyPath, thumb, err := generateKey(keysDir, keyType)
+			keyPath, thumb, err := generateKey(keysDir, "")
 			if err != nil {
 				return err
 			}
@@ -40,7 +65,12 @@ func cmdInit() *cobra.Command {
 			if err := saveConfig(cfgPath, cfg); err != nil {
 				return err
 			}
-			fmt.Printf("Wrote config: %s\nDefault key: %s (thumbprint %s)\n", cfgPath, keyPath, thumb)
+			fmt.Printf("Initialized TwigBush directories:\n")
+			fmt.Printf("  Config: %s\n", cfgPath)
+			fmt.Printf("  Client keys: %s\n", keysDir)
+			fmt.Printf("  AS registry: %s\n", rsKeyRegistryDir)
+			fmt.Printf("\nGenerated default key: %s\n", keyPath)
+			fmt.Printf("Thumbprint: %s\n", thumb)
 			return nil
 		},
 	}
