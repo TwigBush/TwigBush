@@ -18,8 +18,14 @@ import (
 )
 
 type Options struct {
-	EnableCORS bool
-	DevNoStore bool
+	EnableCORS               bool
+	DevNoStore               bool
+	InteractionStartModes    []string
+	InteractionFinishMethods []string
+	KeyProofs                []string
+	SubIDFormats             []string
+	AssertionFormats         []string
+	KeyRotationSupported     bool
 }
 
 type Deps struct {
@@ -84,6 +90,8 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 		//rsr.Post("/register", rs.HandleRegisterResourceSet)
 		//rsr.Post("/token", rs.HandleTokenChaining)
 	})
+
+	r.Options("/grants", GrantDiscoveryHandler(opts))
 
 	r.Get("/.well-known/jwks.json", handlers.JWKS)
 

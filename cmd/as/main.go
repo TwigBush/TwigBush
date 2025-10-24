@@ -12,12 +12,20 @@ import (
 )
 
 func main() {
+
 	grantStore := mustGrantStore()
 	rsKeyStore := mustRSKeyStore()
 	h := server.BuildASRouter(server.Deps{
 		GrantStore: grantStore,
 		RSKeyStore: rsKeyStore,
-	}, server.Options{})
+	}, server.Options{EnableCORS: true,
+		InteractionStartModes:    []string{"redirect", "user_code"},
+		InteractionFinishMethods: []string{"redirect"},
+		KeyProofs:                []string{"httpsig", "jws"},
+		SubIDFormats:             []string{"public", "pairwise"},
+		AssertionFormats:         []string{"jwt"},
+		KeyRotationSupported:     true})
+
 	log.Fatal(http.ListenAndServe(":8085", h))
 }
 
