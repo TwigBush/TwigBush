@@ -15,10 +15,10 @@ import (
 var userCodeRe = regexp.MustCompile(`^[A-Z0-9]{4}-[A-Z0-9]{4}$`)
 
 type DeviceHandler struct {
-	Store types.Store
+	Store types.GrantStore
 }
 
-func NewDeviceHandler(store types.Store) *DeviceHandler {
+func NewDeviceHandler(store types.GrantStore) *DeviceHandler {
 	return &DeviceHandler{Store: store}
 }
 

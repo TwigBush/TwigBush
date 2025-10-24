@@ -117,7 +117,7 @@ type ErrorResponse struct {
 	Description string `json:"error_description,omitempty"`
 }
 
-type Store interface {
+type GrantStore interface {
 	CreateGrant(ctx context.Context, req GrantRequest) (*GrantState, error)
 	GetGrant(ctx context.Context, id string) (*GrantState, bool)
 	FindGrantByUserCodePending(ctx context.Context, code string) (*GrantState, bool)
@@ -135,17 +135,9 @@ type KeyPair struct {
 
 type Proof string
 
-const (
-	HTTPSig    Proof = "httpsig"
-	MTLs       Proof = "mtls"
-	DPoP       Proof = "dpop"
-	JSECP256k1 Proof = "jsecp256k1"
-)
-
 type ProofMethod struct {
 	HTTPSig Proof
 	MTLs    Proof
-	DPoP    Proof
 }
 
 type Configuration struct {

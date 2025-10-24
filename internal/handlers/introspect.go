@@ -31,7 +31,7 @@ type IntrospectResp struct {
 }
 
 func Introspect(w http.ResponseWriter, r *http.Request) {
-	// todo verify dpop
+
 	// 1) Extract token
 	var in introspectReq
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
@@ -96,10 +96,9 @@ func Introspect(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// helpers (stub)
-// Replace this stub with a real call to your AS RS-introspection endpoint.
+// Replace this stub with a real call to intropspect token
 func fetchIntrospection(ctx context.Context, token string) (*types.IntrospectionResult, error) {
-	// TODO: HTTP POST to AS introspection with proof, parse JSON.
+
 	// Minimal mock for now
 	return &types.IntrospectionResult{
 		Active: true,
@@ -114,7 +113,6 @@ func isExpired(i *types.IntrospectionResult) bool {
 	return i == nil || (i.Exp != 0 && i.Exp <= time.Now().Unix())
 }
 
-// Verify token audience is appropriate for this RS.
 // Replace "rs:checkout" with your RS audience id or check against config.
 func audOK(i *types.IntrospectionResult) bool {
 	if len(i.Aud) == 0 {
