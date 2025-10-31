@@ -1,64 +1,51 @@
 package token
 
 import (
-	"encoding/base64"
+	"context"
 	"encoding/json"
 	"log"
-	"time"
 
 	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/types"
-	"github.com/google/uuid"
 )
 
 type IssueConfig struct {
 	Issuer          string
-	TokenTTLSeconds int64
-	Audience        string // e.g. "mcp-resource-servers"
+	Audience        []string
+	TokenTTLSeconds int
+	BoundProof      string          // "httpsig",  etc.
+	ClientJWK       json.RawMessage // the client's bound key
 }
 
-func IssueToken(grant *types.GrantState, cfg IssueConfig) ([]*Token, error) {
+func IssueToken(ctx context.Context, store *gnap.TokenStoreContainer, grant *types.GrantState, cfg IssueConfig) ([]*Token, error) {
 	if len(grant.ApprovedAccess) == 0 {
 		return nil, ErrNotApproved
 	}
 
-	now := time.Now().UTC()
-	iat := now.Unix()
-	exp := now.Add(time.Duration(cfg.TokenTTLSeconds) * time.Second).Unix()
-	jti := uuid.NewString()
-
-	claims := map[string]any{
-		"iss":    cfg.Issuer,
-		"sub":    subjectOrAnon(grant.Subject),
-		"aud":    cfg.Audience,
-		"exp":    exp,
-		"iat":    iat,
-		"jti":    jti,
-		"access": grant.ApprovedAccess,
-		"key":    grant.Client.Key,
-	}
-
-	header := map[string]string{"alg": "HS256", "typ": "JWT"}
-	hb, _ := json.Marshal(header)
-	pb, _ := json.Marshal(claims)
-
-	// base64url (no padding)
-	enc := func(b []byte) string {
-		return base64.RawURLEncoding.EncodeToString(b)
-	}
-
-	jwt := enc(hb) + "." + enc(pb) + ".dev-signature"
-
-	// interate through approved access to mint tokens per resource
-
 	var tokens []*Token
+
+	// Issue one token per approved access grant
 	for _, g := range grant.ApprovedAccess {
-		log.Printf("grant %v", g)
+		log.Printf("Issuing token for grant: %v", g)
+
+		// Generate opaque token using the new pattern
+		tokenValue, err := IssueOpaqueToken(ctx, store, g.Access, IssueOpaqueConfig{
+			Issuer:          cfg.Issuer,
+			Audience:        cfg.Audience,
+			TokenTTLSeconds: cfg.TokenTTLSeconds,
+			BoundProof:      cfg.BoundProof,
+			ClientJWK:       cfg.ClientJWK,
+			Subject:         subjectOrAnon(grant.Subject),
+			InstanceID:      grant.ID,
+		})
+		if err != nil {
+			return nil, err
+		}
 
 		t := &Token{
-			// todo - address issuing a token
-			Value:  "some-specific-token-value-" + string(jwt[0:10]),
+			Value:  tokenValue,
 			Access: g.Access,
+			Label:  g.Label,
 		}
 		tokens = append(tokens, t)
 	}

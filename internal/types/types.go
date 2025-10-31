@@ -74,6 +74,7 @@ func (a *AccessTokenRequest) UnmarshalJSON(data []byte) error {
 }
 
 type AccessItem struct {
+	ID          string          `json:"id,omitempty"`
 	Type        string          `json:"type"`
 	Actions     []string        `json:"actions,omitempty"`
 	Locations   []string        `json:"locations,omitempty"`

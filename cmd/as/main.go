@@ -15,9 +15,12 @@ func main() {
 
 	grantStore := mustGrantStore()
 	rsKeyStore := mustRSKeyStore()
+	tokenStore := mustTokenStore()
+
 	h := server.BuildASRouter(server.Deps{
 		GrantStore: grantStore,
 		RSKeyStore: rsKeyStore,
+		TokenStore: tokenStore,
 	}, server.Options{EnableCORS: true,
 		InteractionStartModes:    []string{"redirect", "user_code"},
 		InteractionFinishMethods: []string{"redirect"},
@@ -39,6 +42,14 @@ func mustGrantStore() types.GrantStore {
 
 func mustRSKeyStore() *gnap.RSKeyStore {
 	s, err := gnap.NewRSKeyStore(defaultDataDir())
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
+func mustTokenStore() *gnap.TokenStoreContainer {
+	s, err := gnap.NewTokenStore(defaultDataDir())
 	if err != nil {
 		panic(err)
 	}

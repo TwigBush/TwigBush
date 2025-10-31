@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/types"
 	"github.com/go-chi/chi/v5"
 
@@ -13,11 +14,12 @@ import (
 
 type ContinueHandler struct {
 	Store       types.GrantStore
+	TokenStore  *gnap.TokenStoreContainer
 	WaitSeconds int // how long the client should wait before polling /continue
 }
 
-func NewContinueHandler(store types.GrantStore) *ContinueHandler {
-	return &ContinueHandler{Store: store, WaitSeconds: 5}
+func NewContinueHandler(store types.GrantStore, tokenStore *gnap.TokenStoreContainer) *ContinueHandler {
+	return &ContinueHandler{Store: store, TokenStore: tokenStore, WaitSeconds: 5}
 }
 
 func (h *ContinueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -67,9 +69,9 @@ func (h *ContinueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case types.GrantStatusApproved:
 		// Issue the final access token. Bind to client key if your IssueToken supports it.
 		issuer := baseURL(r)
-		tok, err := token.IssueToken(grant, token.IssueConfig{
+		tok, err := token.IssueToken(r.Context(), h.TokenStore, grant, token.IssueConfig{
 			Issuer:          issuer,
-			Audience:        "mcp-resource-servers",
+			Audience:        []string{"mcp-resource-servers"},
 			TokenTTLSeconds: grantTokenTTL(r.Context(), h.Store),
 			//BindJWK:         grant.Client.Key.JWK, // enable cnf/jkt in token layer
 		})
@@ -112,4 +114,4 @@ func baseURL(r *http.Request) string {
 
 // If you wired Config into the store, you can read it from there.
 // For now, return a sane default.
-func grantTokenTTL(_ context.Context, _ types.GrantStore) int64 { return 300 }
+func grantTokenTTL(_ context.Context, _ types.GrantStore) int { return 300 }

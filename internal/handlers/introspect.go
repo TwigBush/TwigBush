@@ -2,134 +2,216 @@ package handlers
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"strings"
 	"time"
 
+	"github.com/TwigBush/gnap-go/internal/gnap"
+	mw2 "github.com/TwigBush/gnap-go/internal/mw"
 	"github.com/TwigBush/gnap-go/internal/types"
 )
 
-type introspectReq struct {
-	Token  string `json:"token,omitempty"`
-	Action string `json:"action,omitempty"` // which action to authorize now
-	Type   string `json:"type,omitempty"`   // GNAP access item type
-	ID     string `json:"id,omitempty"`     // GNAP access item identifier
+// ==== Request and response shapes ====
+
+// RS → AS request body per RFC 9767
+type asIntroReq struct {
+	AccessToken    string             `json:"access_token"`     // required
+	Proof          string             `json:"proof,omitempty"`  // recommended, registered method name
+	ResourceServer json.RawMessage    `json:"resource_server"`  // required, string or object by ref
+	Access         []types.AccessItem `json:"access,omitempty"` // optional, GNAP Section 8
+	// Additional registry fields could appear; ignore unknowns
 }
 
-type IntrospectResp struct {
-	Active bool     `json:"active"`
-	Reason string   `json:"reason,omitempty"`
-	Sub    string   `json:"sub,omitempty"`
-	Iss    string   `json:"iss,omitempty"`
-	Aud    []string `json:"aud,omitempty"`
-	Exp    int64    `json:"exp,omitempty"`
-	Iat    int64    `json:"iat,omitempty"`
-	Key    any      `json:"key,omitempty"`
-	Flags  []string `json:"flags,omitempty"`
-	// optionally: Access []types.AccessItem if you return it
+type asIntroResp struct {
+	Active     bool               `json:"active"`
+	Iss        string             `json:"iss,omitempty"`    // required when active
+	Access     []types.AccessItem `json:"access,omitempty"` // required when active (can be empty array)
+	Key        *gnap.BoundKey     `json:"key,omitempty"`    // only if token is bound
+	Flags      []string           `json:"flags,omitempty"`
+	Exp        int64              `json:"exp,omitempty"`
+	Iat        int64              `json:"iat,omitempty"`
+	Nbf        int64              `json:"nbf,omitempty"`
+	Aud        []string           `json:"aud,omitempty"` // array form is allowed
+	Sub        string             `json:"sub,omitempty"`
+	InstanceID string             `json:"instance_id,omitempty"`
 }
 
-func Introspect(w http.ResponseWriter, r *http.Request) {
+type RSRegistry interface {
+	// Resolve RS identifier from the supplied resource_server value (string or object)
+	Resolve(ctx context.Context, raw json.RawMessage) (string, error)
 
-	// 1) Extract token
-	var in introspectReq
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		http.Error(w, "invalid_request", http.StatusBadRequest)
+	// Get the RS verification key material to verify HTTP Message Signatures
+	GetVerificationKey(ctx context.Context, rsID string, r *http.Request) (any, error)
+}
+
+// ==== Dependencies provided at construction ====
+
+type IntrospectionHandler struct {
+	Store      *gnap.TokenStoreContainer
+	RSRegistry RSRegistry
+	ASGrantURL string // iss to return, for example: https://as.example.com/tx
+}
+
+func NewIntrospectionHandler(store *gnap.TokenStoreContainer) *IntrospectionHandler {
+	return &IntrospectionHandler{Store: store}
+}
+
+// ==== Public HTTP handler (AS endpoint) ====
+func (h *IntrospectionHandler) Introspect(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+
+	// 1) Verify RS authentication via HTTP Message Signatures
+	rsIdent, ok := mw2.RSIdentityFromContext(r)
+	if !ok || rsIdent.ID == "" {
+		writeActiveFalse(w)
 		return
 	}
-	tok := in.Token
-	if tok == "" {
-		if hdr := r.Header.Get("Authorization"); strings.HasPrefix(hdr, "GNAP ") || strings.HasPrefix(hdr, "Bearer ") {
-			parts := strings.SplitN(hdr, " ", 2)
-			if len(parts) == 2 {
-				tok = parts[1]
-			}
+	rsID := rsIdent.ID
+
+	// 2) Parse and validate request body
+	var in asIntroReq
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.AccessToken == "" || len(in.ResourceServer) == 0 {
+		writeActiveFalse(w)
+		return
+	}
+
+	// Server reference in body must match the authenticated RS identity
+	bodyRS, err := h.RSRegistry.Resolve(r.Context(), in.ResourceServer)
+	if err != nil || bodyRS == "" || bodyRS != rsID {
+		writeActiveFalse(w)
+		return
+	}
+
+	// 3) Hash the token and lookup by hash only (opaque token pattern)
+	sum := sha256.Sum256([]byte(in.AccessToken))
+	hashB64 := base64.RawURLEncoding.EncodeToString(sum[:])
+
+	tr, err := h.Store.GetByHash(r.Context(), hashB64)
+	if err != nil || tr == nil {
+		writeActiveFalse(w)
+		return
+	}
+
+	now := time.Now().Unix()
+
+	// 4) Evaluate "active" per RFC
+	if tr.Iss == "" || tr.Iss != h.ASGrantURL {
+		writeActiveFalse(w)
+		return
+	}
+	if tr.Revoked {
+		writeActiveFalse(w)
+		return
+	}
+	if tr.Exp != 0 && tr.Exp <= now {
+		writeActiveFalse(w)
+		return
+	}
+	if tr.Nbf != 0 && now < tr.Nbf {
+		writeActiveFalse(w)
+		return
+	}
+	// Proof binding must match if token is bound
+	if tr.BoundKey != nil {
+		if in.Proof == "" || tr.BoundProof == "" || in.Proof != tr.BoundProof {
+			writeActiveFalse(w)
+			return
 		}
 	}
-	if tok == "" {
-		http.Error(w, "invalid_token", http.StatusUnauthorized)
+	// Audience must allow this RS
+	if !audAllows(tr.Aud, rsID) {
+		writeActiveFalse(w)
 		return
 	}
-
-	// 2) Ask AS to introspect for this RS
-	intro, err := fetchIntrospection(r.Context(), tok)
-	if err != nil || !intro.Active || isExpired(intro) || !audOK(intro) {
-		writeJSON(w, http.StatusOK, IntrospectResp{Active: false, Reason: "invalid_or_expired"})
-		return
+	// If caller supplied required access, token must be appropriate
+	if len(in.Access) > 0 {
+		ok, err := canSatisfyAccess(tr.Access, in.Access, rsID)
+		if err != nil || !ok {
+			writeActiveFalse(w)
+			return
+		}
 	}
 
-	// 3) Build a policy check from GNAP access
-	// subject: prefer end-user subject; fallback to client key id
+	// 5) Build filtered access for this RS (may be empty array)
+	filtered := filterAccessForRS(tr.Access, rsID)
 
-	subject := intro.Sub
-	if subject == "" {
-		subject = subjectFromKey(intro.Key) // e.g., "client:<kid>"
+	// 6) Respond active=true with required fields
+	resp := asIntroResp{
+		Active:     true,
+		Iss:        tr.Iss,
+		Access:     filtered, // required, may be empty
+		Flags:      nil,      // todo (joshfischer) do we want to include tracking flags
+		Exp:        tr.Exp,
+		Iat:        tr.Iat,
+		Nbf:        tr.Nbf,
+		Aud:        tr.Aud, // array form
+		Sub:        tr.Sub,
+		InstanceID: tr.InstanceID,
 	}
-	//relation := in.Action
-	//object := in.Type + ":" + in.ID
-
-	//dec, err := authorizer.Check(r.Context(), authz.Request{
-	//	Subject:  subject,
-	//	Relation: relation,
-	//	Object:   object,
-	//	// Context: include constraints if you model CEL conditions in FGA
-	//})
-	//if err != nil {
-	//	log.Printf("authz_error: %v", err)
-	//	http.Error(w, "authz_error", http.StatusInternalServerError)
-	//	return
-	//}
-
-	// 4) Respond per GNAP RS introspection
-
-	resp := IntrospectResp{
-		Active: intro.Active,
-		Sub:    intro.Sub,
-		Iss:    intro.Iss,
-		Aud:    intro.Aud,
-		Exp:    intro.Exp,
-		Iat:    intro.Iat,
-		Key:    intro.Key,
-		Flags:  intro.Flags,
+	if tr.BoundKey != nil {
+		resp.Key = &gnap.BoundKey{
+			Proof: tr.BoundKey.Proof,
+			JWK:   tr.BoundKey.JWK,
+			Ref:   tr.BoundKey.Ref,
+		}
 	}
+
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// Replace this stub with a real call to intropspect token
-func fetchIntrospection(ctx context.Context, token string) (*types.IntrospectionResult, error) {
-
-	// Minimal mock for now
-	return &types.IntrospectionResult{
-		Active: true,
-		Sub:    "user:alice",
-		Iss:    "http://localhost:8089/grants",
-		Aud:    []string{"rs:checkout"}, // set this RS audience
-		Exp:    time.Now().Add(10 * time.Minute).Unix(),
-	}, nil
-}
-
-func isExpired(i *types.IntrospectionResult) bool {
-	return i == nil || (i.Exp != 0 && i.Exp <= time.Now().Unix())
-}
-
-// Replace "rs:checkout" with your RS audience id or check against config.
-func audOK(i *types.IntrospectionResult) bool {
-	if len(i.Aud) == 0 {
-		return true // if you do not enforce aud yet
+func audAllows(aud []string, rsID string) bool {
+	if len(aud) == 0 {
+		return true
 	}
-	for _, a := range i.Aud {
-		if a == "rs:checkout" {
+	for _, a := range aud {
+		if a == rsID {
 			return true
 		}
 	}
 	return false
 }
 
-func subjectFromKey(k any) string { return "client:unknown" }
+// canSatisfyAccess returns true if tokenAccess is appropriate for requestedAccess at this RS.
+// You decide subset and constraint semantics. On parse error, return (false, err)
+// If you cannot process the request's access content, you must not mark active.
+func canSatisfyAccess(tokenAccess, requested []types.AccessItem, rsID string) (bool, error) {
+	// Minimal conservative behavior: require that each requested type/id is present in token
+
+	index := map[string]struct{}{}
+	for _, a := range tokenAccess {
+		key := a.Type + "|" + a.ID
+		index[key] = struct{}{}
+	}
+	for _, r := range requested {
+		key := r.Type + "|" + r.ID
+		if _, ok := index[key]; !ok {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func filterAccessForRS(all []types.AccessItem, rsID string) []types.AccessItem {
+	if len(all) == 0 {
+		return []types.AccessItem{}
+	}
+	out := make([]types.AccessItem, 0, len(all))
+	for _, a := range all {
+		// If you tag access with audiences, filter here. Otherwise return as is.
+		out = append(out, a)
+	}
+	return out
+}
+
+func writeActiveFalse(w http.ResponseWriter) {
+	// Spec requires 200 with only {"active": false} and no other fields
+	_ = json.NewEncoder(w).Encode(map[string]bool{"active": false})
+}
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
 }
