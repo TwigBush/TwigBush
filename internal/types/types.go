@@ -102,7 +102,7 @@ type GrantState struct {
 	CreatedAt             time.Time          `json:"created_at"`
 	UpdatedAt             time.Time          `json:"updated_at"`
 	ExpiresAt             time.Time          `json:"expires_at"`
-	Locations             json.RawMessage    `json:"locations,omitempty"`
+	Locations             []string           `json:"locations,omitempty"`
 	UserCode              *string            `json:"user_code,omitempty"`
 	ApprovedAccessGranted []GrantedAccess    `json:"approved_access_granted,omitempty"`
 	CodeVerified          bool               `json:"code_verified"`

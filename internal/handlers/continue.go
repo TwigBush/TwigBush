@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/TwigBush/gnap-go/internal/gnap"
@@ -69,11 +70,11 @@ func (h *ContinueHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case types.GrantStatusApproved:
 		// Issue the final access token. Bind to client key if your IssueToken supports it.
 		issuer := baseURL(r)
+		fmt.Println("grant ", grant)
 		tok, err := token.IssueToken(r.Context(), h.TokenStore, grant, token.IssueConfig{
 			Issuer:          issuer,
-			Audience:        []string{"mcp-resource-servers"},
+			Audience:        grant.Locations,
 			TokenTTLSeconds: grantTokenTTL(r.Context(), h.Store),
-			//BindJWK:         grant.Client.Key.JWK, // enable cnf/jkt in token layer
 		})
 		if err != nil {
 			httpx.WriteError(w, http.StatusBadRequest, err.Error())
