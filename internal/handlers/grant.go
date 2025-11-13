@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/TwigBush/gnap-go/internal/gnap"
 	"github.com/TwigBush/gnap-go/internal/httpx"
 	"github.com/TwigBush/gnap-go/internal/sign"
 	"github.com/TwigBush/gnap-go/internal/types"
@@ -12,6 +13,7 @@ import (
 
 type GrantHandler struct {
 	Store       types.GrantStore
+	TokenStore  gnap.TokenStoreContainer
 	WaitSeconds int // how long the client should wait before polling /continue
 }
 

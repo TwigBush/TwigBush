@@ -119,6 +119,12 @@ func VerifyRSProof(opts ...RSOption) func(http.Handler) http.Handler {
 				http.Error(w, "invalid http signature", http.StatusUnauthorized)
 				return
 			}
+			rs := RSIdentity{
+				ID:    entry.params["keyid"], // or map to your canonical RS id
+				KeyID: entry.params["keyid"],
+				Alg:   alg,
+			}
+			r = WithRSIdentity(r, rs)
 
 			next.ServeHTTP(w, r)
 		})

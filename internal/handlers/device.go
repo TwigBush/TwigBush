@@ -69,11 +69,11 @@ func (h *DeviceHandler) VerifyJSON(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out := mapGrantStateToJavaJSON(grant)
+	out := mapGrantStateToJSON(grant)
 	httpx.WriteJSON(w, http.StatusOK, out)
 }
 
-func mapGrantStateToJavaJSON(g *types.GrantState) GrantStateJSON {
+func mapGrantStateToJSON(g *types.GrantState) GrantStateJSON {
 	return GrantStateJSON{
 		ID:                g.ID,
 		Client:            g.Client,
@@ -87,7 +87,7 @@ func mapGrantStateToJavaJSON(g *types.GrantState) GrantStateJSON {
 		UserCode:       deref(g.UserCode),
 		Subject:        deref(g.Subject),
 		ApprovedAccess: g.ApprovedAccess,
-		Locations:      unmarshalLocations(g.Locations),
+		Locations:      g.Locations,
 	}
 }
 
@@ -98,17 +98,6 @@ func deref(p *string) string {
 		return ""
 	}
 	return *p
-}
-
-func unmarshalLocations(raw json.RawMessage) []string {
-	if len(raw) == 0 {
-		return nil
-	}
-	var xs []string
-	if err := json.Unmarshal(raw, &xs); err != nil {
-		return nil
-	}
-	return xs
 }
 
 // ---------- HTML consent: POST /device/consent (form-urlencoded) → HTML page ----------

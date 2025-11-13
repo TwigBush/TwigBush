@@ -31,6 +31,7 @@ type Options struct {
 type Deps struct {
 	GrantStore types.GrantStore
 	RSKeyStore *gnap.RSKeyStore
+	TokenStore *gnap.TokenStoreContainer
 }
 
 func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) http.Handler {
@@ -65,13 +66,26 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 	}))
 
 	grant := handlers.NewGrantHandler(d.GrantStore)
-	cont := handlers.NewContinueHandler(d.GrantStore)
+	cont := handlers.NewContinueHandler(d.GrantStore, d.TokenStore)
 	device := handlers.NewDeviceHandler(d.GrantStore)
+	introspect := handlers.NewIntrospectionHandler(d.TokenStore)
 
+	// Public endpoints - no authentication require
 	r.Get("/healthz", healthCheckHandler)
 	r.Get("/version", handlers.VersionHandler)
 
-	r.Route("/", func(rsr chi.Router) {
+	r.Options("/grants", GrantDiscoveryHandler(opts))
+	r.Get("/.well-known/jwks.json", handlers.JWKS)
+
+	// Device endpoints - no RS signature verification needed
+	r.Post("/device/verify/json", device.VerifyJSON)
+	r.Post("/device/verify", device.VerifyForm)
+	r.Get("/device", device.Page)
+	r.Post("/device/consent", device.ConsentForm)
+
+	r.Post("/continue/{grantId}", cont.ServeHTTP)
+
+	r.Group(func(rsr chi.Router) {
 		rsr.Use(mw2.VerifyRSProof(
 			mw2.WithRSKeyResolver(func(r *http.Request, params map[string]string) (crypto.PublicKey, error) {
 				// Resolve by keyid, or by RS identity in mTLS, or by tenant
@@ -85,20 +99,10 @@ func BuildASRouter(d Deps, opts Options, mw ...func(http.Handler) http.Handler) 
 		))
 		rsr.Post("/grants", grant.ServeHTTP)
 
-		rsr.Post("/continue/{grantId}", cont.ServeHTTP)
-		rsr.Post("/introspect", handlers.Introspect)
+		rsr.Post("/introspect", introspect.Introspect)
 		//rsr.Post("/register", rs.HandleRegisterResourceSet)
 		//rsr.Post("/token", rs.HandleTokenChaining)
 	})
-
-	r.Options("/grants", GrantDiscoveryHandler(opts))
-
-	r.Get("/.well-known/jwks.json", handlers.JWKS)
-
-	r.Post("/device/verify/json", device.VerifyJSON)
-	r.Post("/device/verify", device.VerifyForm)
-	r.Get("/device", device.Page)
-	r.Post("/device/consent", device.ConsentForm)
 
 	if d.RSKeyStore != nil {
 		rsKeys := handlers.NewRSKeysHandler(d.RSKeyStore)

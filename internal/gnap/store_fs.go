@@ -114,11 +114,6 @@ func (fileStore *FileStore) CreateGrant(ctx context.Context, req types.GrantRequ
 		}
 	}
 
-	var locRaw json.RawMessage
-	if len(locations) > 0 {
-		locRaw, _ = json.Marshal(locations)
-	}
-
 	uc := RandUserCode()
 
 	grantState := &types.GrantState{
@@ -131,7 +126,7 @@ func (fileStore *FileStore) CreateGrant(ctx context.Context, req types.GrantRequ
 		CreatedAt:         now,
 		UpdatedAt:         now,
 		ExpiresAt:         expiration,
-		Locations:         locRaw,
+		Locations:         locations,
 		UserCode:          &uc,
 	}
 
