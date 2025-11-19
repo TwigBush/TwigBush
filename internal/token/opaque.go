@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/TwigBush/gnap-go/internal/gnap"
@@ -32,10 +33,8 @@ func IssueOpaqueToken(ctx context.Context, store *gnap.TokenStoreContainer, acce
 		return "", err
 	}
 
-	// Encode as base64url - this is what the client receives
 	tokenValue := base64.RawURLEncoding.EncodeToString(raw)
 
-	// Hash the token value - this is what we store
 	sum := sha256.Sum256([]byte(tokenValue))
 	hashB64 := base64.RawURLEncoding.EncodeToString(sum[:])
 
@@ -72,4 +71,75 @@ func IssueOpaqueToken(ctx context.Context, store *gnap.TokenStoreContainer, acce
 
 	// Return the actual token value to the client
 	return tokenValue, nil
+}
+
+// Validation errors.
+var (
+	ErrInvalidToken = errors.New("invalid token")
+	ErrExpiredToken = errors.New("expired token")
+	ErrNotYetValid  = errors.New("token not yet valid")
+	ErrRevokedToken = errors.New("revoked token")
+)
+
+// ValidateOpaqueConfig controls issuer and audience checks.
+type ValidateOpaqueConfig struct {
+	ExpectedIssuer   string
+	ExpectedAudience []string
+}
+
+// ValidateOpaqueToken hashes the incoming token, loads the record from the store,
+// and checks expiry, nbf, revoked flag, and iss/aud.
+func ValidateOpaqueToken(
+	ctx context.Context,
+	store *gnap.TokenStoreContainer,
+	tokenValue string,
+	cfg ValidateOpaqueConfig,
+) (*gnap.TokenRecord, error) {
+	if tokenValue == "" {
+		return nil, ErrInvalidToken
+	}
+
+	// Compute hash in the same way as IssueOpaqueToken
+	sum := sha256.Sum256([]byte(tokenValue))
+	hashB64 := base64.RawURLEncoding.EncodeToString(sum[:])
+
+	rec, err := store.GetByHash(ctx, hashB64)
+	if err != nil {
+		// For security, treat any load error as "invalid" to callers.
+		return nil, ErrInvalidToken
+	}
+
+	now := time.Now().Unix()
+	if rec.Revoked {
+		return nil, ErrRevokedToken
+	}
+	if now < rec.Nbf {
+		return nil, ErrNotYetValid
+	}
+	if now > rec.Exp {
+		return nil, ErrExpiredToken
+	}
+
+	if cfg.ExpectedIssuer != "" && rec.Iss != cfg.ExpectedIssuer {
+		return nil, ErrInvalidToken
+	}
+	if len(cfg.ExpectedAudience) != 0 && !hasOverlap(rec.Aud, cfg.ExpectedAudience) {
+		return nil, ErrInvalidToken
+	}
+
+	return rec, nil
+}
+
+func hasOverlap(a, b []string) bool {
+	if len(a) == 0 || len(b) == 0 {
+		return false
+	}
+	for _, x := range a {
+		for _, y := range b {
+			if x == y {
+				return true
+			}
+		}
+	}
+	return false
 }

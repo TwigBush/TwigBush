@@ -38,16 +38,19 @@ func cmdInit() *cobra.Command {
 				return fmt.Errorf("failed to create AS data directory: %w", err)
 			}
 
-			// Create RS key registry directory (for AS to store registered RS public keys)
 			rsKeyRegistryDir := filepath.Join(asDataDir, "rs_keys")
 			if err := ensureDir(rsKeyRegistryDir); err != nil {
 				return fmt.Errorf("failed to create RS key registry: %w", err)
 			}
 
-			// Create grants directory (for local storage of grants)
 			grantsDir := filepath.Join(asDataDir, "grants")
 			if err := ensureDir(grantsDir); err != nil {
 				return fmt.Errorf("failed to create grants directory: %w", err)
+			}
+
+			tokens := filepath.Join(asDataDir, "tokens")
+			if err := ensureDir(tokens); err != nil {
+				return fmt.Errorf("failed to create tokens directory: %w", err)
 			}
 
 			// Create default tenant directory
